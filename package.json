@@ -1,0 +1,33 @@
+{
+  "name": "edinburgh-city-simulation-api",
+  "version": "1.0.0",
+  "description": "Edinburgh City Simulation API with WebSocket and REST support for Palantir Foundry",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "echo \"No tests specified\" && exit 0"
+  },
+  "dependencies": {
+    "axios": "^1.11.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "ws": "^8.18.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "simulation",
+    "edinburgh",
+    "traffic",
+    "weather",
+    "websocket",
+    "rest-api",
+    "foundry",
+    "palantir"
+  ],
+  "author": "Edinburgh City Simulation Team",
+  "license": "MIT"
+}

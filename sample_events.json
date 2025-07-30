@@ -1,0 +1,66 @@
+[
+  {
+    "name": "Edinburgh Festival Fringe Show",
+    "type": "Cultural",
+    "duration_hours": 2,
+    "attendance": 150,
+    "traffic_multiplier": 1.2,
+    "location": {"lat": 55.9507, "lng": -3.1883}
+  },
+  {
+    "name": "Royal Mile Market",
+    "type": "Market",
+    "duration_hours": 8,
+    "attendance": 800,
+    "traffic_multiplier": 1.5,
+    "location": {"lat": 55.9506, "lng": -3.1848}
+  },
+  {
+    "name": "Edinburgh Castle Tour",
+    "type": "Tourism",
+    "duration_hours": 3,
+    "attendance": 300,
+    "traffic_multiplier": 1.3,
+    "location": {"lat": 55.9486, "lng": -3.1999}
+  },
+  {
+    "name": "Princes Street Concert",
+    "type": "Music",
+    "duration_hours": 4,
+    "attendance": 2000,
+    "traffic_multiplier": 2.0,
+    "location": {"lat": 55.9520, "lng": -3.1960}
+  },
+  {
+    "name": "Holyrood Park Run",
+    "type": "Sports",
+    "duration_hours": 2,
+    "attendance": 500,
+    "traffic_multiplier": 1.4,
+    "location": {"lat": 55.9398, "lng": -3.1611}
+  },
+  {
+    "name": "University Conference",
+    "type": "Business",
+    "duration_hours": 6,
+    "attendance": 400,
+    "traffic_multiplier": 1.3,
+    "location": {"lat": 55.9445, "lng": -3.1875}
+  },
+  {
+    "name": "Old Town Ghost Walk",
+    "type": "Tourism",
+    "duration_hours": 1.5,
+    "attendance": 50,
+    "traffic_multiplier": 1.1,
+    "location": {"lat": 55.9485, "lng": -3.1920}
+  },
+  {
+    "name": "Grassmarket Food Festival",
+    "type": "Food",
+    "duration_hours": 10,
+    "attendance": 1200,
+    "traffic_multiplier": 1.8,
+    "location": {"lat": 55.9468, "lng": -3.1934}
+  }
+]
