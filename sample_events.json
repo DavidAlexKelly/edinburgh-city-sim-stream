@@ -1,66 +1,102 @@
 [
   {
-    "name": "Edinburgh Festival Fringe Show",
-    "type": "Cultural",
-    "duration_hours": 2,
-    "attendance": 150,
-    "traffic_multiplier": 1.2,
-    "location": {"lat": 55.9507, "lng": -3.1883}
+    "type": "festival",
+    "name": "Edinburgh Fringe Festival",
+    "description": "World's largest arts festival bringing thousands of performers and visitors to the city center",
+    "datazones": ["S01008698", "S01008699", "S01008700", "S01008701", "S01008702", "S01008703", "S01008704"],
+    "impact_factor": 0.8,
+    "start_hour": 10,
+    "end_hour": 23,
+    "duration_hours": 13
   },
   {
-    "name": "Royal Mile Market",
-    "type": "Market",
-    "duration_hours": 8,
-    "attendance": 800,
-    "traffic_multiplier": 1.5,
-    "location": {"lat": 55.9506, "lng": -3.1848}
+    "type": "concert",
+    "name": "Edinburgh Castle Concert",
+    "description": "Major outdoor concert at Edinburgh Castle attracting large crowds",
+    "datazones": ["S01008705", "S01008706", "S01008707", "S01008708", "S01008709", "S01008710", "S01008711"],
+    "impact_factor": 0.6,
+    "start_hour": 19,
+    "end_hour": 22,
+    "duration_hours": 3
   },
   {
-    "name": "Edinburgh Castle Tour",
-    "type": "Tourism",
-    "duration_hours": 3,
-    "attendance": 300,
-    "traffic_multiplier": 1.3,
-    "location": {"lat": 55.9486, "lng": -3.1999}
+    "type": "sports",
+    "name": "Hibernian FC Home Match",
+    "description": "Football match at Easter Road Stadium with 20,000+ capacity",
+    "datazones": ["S01008733", "S01008734", "S01008735", "S01008736", "S01008737", "S01008738", "S01008739"],
+    "impact_factor": 0.5,
+    "start_hour": 15,
+    "end_hour": 17,
+    "duration_hours": 2
   },
   {
-    "name": "Princes Street Concert",
-    "type": "Music",
-    "duration_hours": 4,
-    "attendance": 2000,
-    "traffic_multiplier": 2.0,
-    "location": {"lat": 55.9520, "lng": -3.1960}
+    "type": "sports",
+    "name": "Hearts FC Home Match",
+    "description": "Football match at Tynecastle Stadium in Gorgie area",
+    "datazones": ["S01008740", "S01008741", "S01008742", "S01008743", "S01008744", "S01008745", "S01008746"],
+    "impact_factor": 0.5,
+    "start_hour": 15,
+    "end_hour": 17,
+    "duration_hours": 2
   },
   {
-    "name": "Holyrood Park Run",
-    "type": "Sports",
-    "duration_hours": 2,
-    "attendance": 500,
-    "traffic_multiplier": 1.4,
-    "location": {"lat": 55.9398, "lng": -3.1611}
+    "type": "parade",
+    "name": "Royal Mile Parade",
+    "description": "Traditional parade along the Royal Mile from Castle to Holyrood",
+    "datazones": ["S01008698", "S01008726", "S01008727", "S01008728", "S01008729", "S01008730", "S01008731"],
+    "impact_factor": 0.4,
+    "start_hour": 11,
+    "end_hour": 14,
+    "duration_hours": 3
   },
   {
-    "name": "University Conference",
-    "type": "Business",
-    "duration_hours": 6,
-    "attendance": 400,
-    "traffic_multiplier": 1.3,
-    "location": {"lat": 55.9445, "lng": -3.1875}
+    "type": "market",
+    "name": "Grassmarket Weekend Market",
+    "description": "Popular weekend market in historic Grassmarket area",
+    "datazones": ["S01008705", "S01008706", "S01008707", "S01008708"],
+    "impact_factor": 0.3,
+    "start_hour": 9,
+    "end_hour": 17,
+    "duration_hours": 8
   },
   {
-    "name": "Old Town Ghost Walk",
-    "type": "Tourism",
-    "duration_hours": 1.5,
-    "attendance": 50,
-    "traffic_multiplier": 1.1,
-    "location": {"lat": 55.9485, "lng": -3.1920}
+    "type": "conference",
+    "name": "Tech Conference at EICC",
+    "description": "Large technology conference at Edinburgh International Conference Centre",
+    "datazones": ["S01008747", "S01008748", "S01008749", "S01008750", "S01008751", "S01008752", "S01008753"],
+    "impact_factor": 0.3,
+    "start_hour": 8,
+    "end_hour": 18,
+    "duration_hours": 10
   },
   {
-    "name": "Grassmarket Food Festival",
-    "type": "Food",
-    "duration_hours": 10,
-    "attendance": 1200,
-    "traffic_multiplier": 1.8,
-    "location": {"lat": 55.9468, "lng": -3.1934}
+    "type": "graduation",
+    "name": "University of Edinburgh Graduation",
+    "description": "Graduation ceremony at McEwan Hall attracting families and visitors",
+    "datazones": ["S01008712", "S01008713", "S01008714", "S01008715", "S01008716"],
+    "impact_factor": 0.4,
+    "start_hour": 10,
+    "end_hour": 16,
+    "duration_hours": 6
+  },
+  {
+    "type": "emergency",
+    "name": "Road Closure Emergency",
+    "description": "Emergency road closure affecting major routes through the city",
+    "datazones": ["S01008712", "S01008713", "S01008714", "S01008715", "S01008716", "S01008717", "S01008718"],
+    "impact_factor": 0.7,
+    "start_hour": 0,
+    "end_hour": 23,
+    "duration_hours": 4
+  },
+  {
+    "type": "protest",
+    "name": "Peaceful Demonstration",
+    "description": "Organized peaceful demonstration affecting city center traffic",
+    "datazones": ["S01008698", "S01008699", "S01008700", "S01008701", "S01008712", "S01008713"],
+    "impact_factor": 0.4,
+    "start_hour": 12,
+    "end_hour": 16,
+    "duration_hours": 4
   }
 ]

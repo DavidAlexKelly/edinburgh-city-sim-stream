@@ -176,7 +176,6 @@ app.post('/api/simulations/start', async (req, res) => {
       next_data_in_seconds: seconds_per_hour,
       api_endpoints: {
         status: `/api/simulations/${simulationId}`,
-        snapshot: `/api/simulations/${simulationId}/snapshot`,
         stop: `/api/simulations/${simulationId}/stop`,
         time_compression: `/api/simulations/${simulationId}/time-compression`
       }
@@ -193,7 +192,7 @@ app.post('/api/simulations/start', async (req, res) => {
   }
 });
 
-// Get specific simulation status
+// Get specific simulation data (consolidated endpoint)
 app.get('/api/simulations/:id', (req, res) => {
   try {
     const simId = parseInt(req.params.id);
@@ -216,17 +215,20 @@ app.get('/api/simulations/:id', (req, res) => {
       });
     }
     
+    const snapshot = simulation.getCurrentSnapshot();
+    
     res.json({
       status: 'success',
-      timestamp: new Date().toISOString(),
-      ...simulation.getSimulationStatus()
+      retrieved_at: new Date().toISOString(),
+      server_time: new Date().toISOString(),
+      ...snapshot
     });
     
   } catch (error) {
-    console.error('Get simulation error:', error);
+    console.error('Get simulation data error:', error);
     res.status(500).json({ 
       status: 'error',
-      error: 'Failed to get simulation status', 
+      error: 'Failed to get simulation data', 
       message: error.message 
     });
   }
@@ -272,46 +274,6 @@ app.post('/api/simulations/:id/stop', (req, res) => {
     res.status(500).json({ 
       status: 'error',
       error: 'Failed to stop simulation', 
-      message: error.message 
-    });
-  }
-});
-
-// Get current simulation snapshot (perfect for Foundry polling)
-app.get('/api/simulations/:id/snapshot', (req, res) => {
-  try {
-    const simId = parseInt(req.params.id);
-    
-    if (isNaN(simId)) {
-      return res.status(400).json({ 
-        status: 'error',
-        error: 'Invalid simulation ID format' 
-      });
-    }
-    
-    const simulation = activeSimulations.get(simId);
-    if (!simulation) {
-      return res.status(404).json({ 
-        status: 'error',
-        error: 'Simulation not found',
-        simulation_id: simId 
-      });
-    }
-    
-    const snapshot = simulation.getCurrentSnapshot();
-    
-    res.json({
-      status: 'success',
-      retrieved_at: new Date().toISOString(),
-      server_time: new Date().toISOString(),
-      ...snapshot
-    });
-    
-  } catch (error) {
-    console.error('Get snapshot error:', error);
-    res.status(500).json({ 
-      status: 'error',
-      error: 'Failed to get simulation snapshot', 
       message: error.message 
     });
   }
@@ -433,7 +395,6 @@ app.use('*', (req, res) => {
       'POST /api/simulations/start',
       'GET /api/simulations/{id}',
       'POST /api/simulations/{id}/stop',
-      'GET /api/simulations/{id}/snapshot',
       'PUT /api/simulations/{id}/time-compression'
     ]
   });
