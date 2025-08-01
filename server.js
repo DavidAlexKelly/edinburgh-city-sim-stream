@@ -133,16 +133,22 @@ app.get('/api/simulations', (req, res) => {
   }
 });
 
-// Start a new simulation - SIMPLIFIED (no foundry_config parameter)
-app.post('/api/simulations/start', (req, res) => {
+// Start a new simulation - CONVERTED TO GET REQUEST
+app.get('/api/simulations/start', (req, res) => {
   try {
-    const { seconds_per_hour = 10, simulation_name } = req.body;
+    const { 
+      seconds_per_hour = 10, 
+      simulation_name = 'Edinburgh Simulation'
+    } = req.query;
+    
+    // Convert string query params to numbers
+    const secondsPerHour = parseInt(seconds_per_hour);
     
     // Validate input
-    if (seconds_per_hour < 1 || seconds_per_hour > 3600) {
+    if (isNaN(secondsPerHour) || secondsPerHour < 1 || secondsPerHour > 3600) {
       return res.status(400).json({
         status: 'error',
-        message: 'seconds_per_hour must be between 1 and 3600'
+        message: 'seconds_per_hour must be a number between 1 and 3600'
       });
     }
     
@@ -163,8 +169,7 @@ app.post('/api/simulations/start', (req, res) => {
     const simulation = new CitySimulation(
       availableWS,
       simulationId,
-      seconds_per_hour
-      // No foundry_config parameter - handled internally
+      secondsPerHour
     );
     
     // Store simulation
@@ -176,13 +181,13 @@ app.post('/api/simulations/start', (req, res) => {
     const response = {
       status: 'success',
       simulation_id: simulationId,
-      simulation_name: simulation_name || `Edinburgh Simulation ${simulationId}`,
-      seconds_per_hour: seconds_per_hour,
+      simulation_name: simulation_name,
+      seconds_per_hour: secondsPerHour,
       simulation_status: 'starting',
       foundry_integration: !!simulation.foundryConfig,
       message: 'Simulation started successfully',
       started_at: new Date().toISOString(),
-      next_data_in_seconds: seconds_per_hour,
+      next_data_in_seconds: secondsPerHour,
       api_endpoints: {
         status: `/api/simulations/${simulationId}/status`,
         snapshot: `/api/simulations/${simulationId}/data`,
@@ -190,7 +195,7 @@ app.post('/api/simulations/start', (req, res) => {
       }
     };
     
-    console.log(`🚀 Started simulation ${simulationId} with ${seconds_per_hour}s per hour`);
+    console.log(`🚀 Started simulation ${simulationId} with ${secondsPerHour}s per hour`);
     res.status(201).json(response);
     
   } catch (error) {
@@ -268,8 +273,8 @@ app.get('/api/simulations/:id/data', (req, res) => {
   }
 });
 
-// Stop simulation
-app.post('/api/simulations/:id/stop', (req, res) => {
+// Stop simulation - CONVERTED TO GET REQUEST
+app.get('/api/simulations/:id/stop', (req, res) => {
   try {
     const { id } = req.params;
     const simulation = activeSimulations.get(id);
@@ -306,16 +311,18 @@ app.post('/api/simulations/:id/stop', (req, res) => {
   }
 });
 
-// Update time compression
-app.put('/api/simulations/:id/time-compression', (req, res) => {
+// Update time compression - CONVERTED TO GET REQUEST
+app.get('/api/simulations/:id/time-compression', (req, res) => {
   try {
     const { id } = req.params;
-    const { seconds_per_hour } = req.body;
+    const { seconds_per_hour } = req.query;
     
-    if (!seconds_per_hour || seconds_per_hour < 1 || seconds_per_hour > 3600) {
+    const secondsPerHour = parseInt(seconds_per_hour);
+    
+    if (isNaN(secondsPerHour) || secondsPerHour < 1 || secondsPerHour > 3600) {
       return res.status(400).json({
         status: 'error',
-        message: 'seconds_per_hour must be between 1 and 3600'
+        message: 'seconds_per_hour must be a number between 1 and 3600'
       });
     }
     
@@ -329,19 +336,19 @@ app.put('/api/simulations/:id/time-compression', (req, res) => {
     }
     
     const previousSecondsPerHour = simulation.secondsPerHour;
-    simulation.updateTimeCompression(seconds_per_hour);
+    simulation.updateTimeCompression(secondsPerHour);
     
     res.json({
       status: 'success',
       simulation_id: id,
-      seconds_per_hour: seconds_per_hour,
+      seconds_per_hour: secondsPerHour,
       previous_seconds_per_hour: previousSecondsPerHour,
       simulation_status: simulation.isRunning ? 'running' : 'stopped',
       message: 'Time compression updated successfully',
       updated_at: new Date().toISOString()
     });
     
-    console.log(`⏰ Updated simulation ${id} time compression: ${previousSecondsPerHour}s → ${seconds_per_hour}s per hour`);
+    console.log(`⏰ Updated simulation ${id} time compression: ${previousSecondsPerHour}s → ${secondsPerHour}s per hour`);
     
   } catch (error) {
     console.error('❌ Error updating time compression:', error);
@@ -353,7 +360,7 @@ app.put('/api/simulations/:id/time-compression', (req, res) => {
   }
 });
 
-// Error handling middleware
+// Error handling middleware for async errors
 app.use((err, req, res, next) => {
   console.error('❌ Unhandled error:', err);
   res.status(500).json({
@@ -405,8 +412,17 @@ server.listen(PORT, () => {
   console.log(`📊 Health check: http://localhost:${PORT}/health`);
   console.log(`🎯 Foundry integration: ${foundryEnabled ? 'ENABLED' : 'DISABLED'}`);
   
+  console.log('\n📋 Available GET Endpoints:');
+  console.log(`   • GET  /health - Health check`);
+  console.log(`   • GET  /api/simulations - List all simulations`);
+  console.log(`   • GET  /api/simulations/start?seconds_per_hour=10&simulation_name=Test - Start simulation`);
+  console.log(`   • GET  /api/simulations/:id/status - Get simulation status`);
+  console.log(`   • GET  /api/simulations/:id/data - Get simulation data`);
+  console.log(`   • GET  /api/simulations/:id/stop - Stop simulation`);
+  console.log(`   • GET  /api/simulations/:id/time-compression?seconds_per_hour=5 - Update time compression`);
+  
   if (!foundryEnabled) {
-    console.log('💡 To enable Foundry integration, set these environment variables:');
+    console.log('\n💡 To enable Foundry integration, set these environment variables:');
     console.log('   - FOUNDRY_URL');
     console.log('   - FOUNDRY_CLIENT_ID');
     console.log('   - FOUNDRY_CLIENT_SECRET');
