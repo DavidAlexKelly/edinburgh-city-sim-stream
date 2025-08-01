@@ -1,7 +1,5 @@
-// server.js - Edinburgh City Simulation API with integrated Foundry configuration
+// server.js - Edinburgh City Simulation API (WebSocket-free version)
 import express from 'express';
-import { WebSocketServer } from 'ws';
-import { createServer } from 'http';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { CitySimulation, activeSimulations } from './lib/simulation.js';
@@ -15,15 +13,6 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 app.use(cors());
 app.use(express.json());
-
-// Create HTTP server
-const server = createServer(app);
-
-// Create WebSocket server
-const wss = new WebSocketServer({ 
-  server,
-  path: '/ws'
-});
 
 // Validate Foundry configuration on startup (optional)
 function validateFoundryConfig() {
@@ -58,37 +47,6 @@ function validateFoundryConfig() {
 // Check Foundry config on startup
 const foundryEnabled = validateFoundryConfig();
 
-// WebSocket connection handling
-wss.on('connection', (ws, request) => {
-  console.log('🔌 New WebSocket connection established');
-  
-  ws.on('message', (message) => {
-    try {
-      const data = JSON.parse(message.toString());
-      console.log('📨 Received WebSocket message:', data.type);
-      
-      // Handle different message types if needed
-      switch (data.type) {
-        case 'ping':
-          ws.send(JSON.stringify({ type: 'pong', timestamp: new Date().toISOString() }));
-          break;
-        default:
-          console.log('Unknown message type:', data.type);
-      }
-    } catch (error) {
-      console.error('❌ Error parsing WebSocket message:', error);
-    }
-  });
-  
-  ws.on('close', () => {
-    console.log('🔌 WebSocket connection closed');
-  });
-  
-  ws.on('error', (error) => {
-    console.error('❌ WebSocket error:', error);
-  });
-});
-
 // =============================================================================
 // API ROUTES
 // =============================================================================
@@ -99,7 +57,8 @@ app.get('/health', (req, res) => {
     status: 'healthy',
     timestamp: new Date().toISOString(),
     foundry_integration: foundryEnabled,
-    active_simulations: activeSimulations.size
+    active_simulations: activeSimulations.size,
+    server_mode: 'REST API Only'
   });
 });
 
@@ -133,7 +92,7 @@ app.get('/api/simulations', (req, res) => {
   }
 });
 
-// Start a new simulation - CONVERTED TO GET REQUEST
+// Start a new simulation
 app.get('/api/simulations/start', (req, res) => {
   try {
     const { 
@@ -155,19 +114,9 @@ app.get('/api/simulations/start', (req, res) => {
     // Generate unique simulation ID
     const simulationId = `sim_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
-    // Find available WebSocket connection
-    const availableWS = Array.from(wss.clients).find(ws => ws.readyState === 1);
-    
-    if (!availableWS) {
-      return res.status(503).json({
-        status: 'error',
-        message: 'No WebSocket connections available'
-      });
-    }
-    
-    // Create simulation (Foundry config loaded automatically from environment)
+    // Create simulation (no WebSocket needed)
     const simulation = new CitySimulation(
-      availableWS,
+      null, // No WebSocket
       simulationId,
       secondsPerHour
     );
@@ -183,8 +132,12 @@ app.get('/api/simulations/start', (req, res) => {
       simulation_id: simulationId,
       simulation_name: simulation_name,
       seconds_per_hour: secondsPerHour,
-      simulation_status: 'starting',
+      simulation_status: 'running',
       foundry_integration: !!simulation.foundryConfig,
+      data_streaming: {
+        foundry_push: !!simulation.foundryConfig ? 'ENABLED' : 'DISABLED',
+        api_access: 'ENABLED'
+      },
       message: 'Simulation started successfully',
       started_at: new Date().toISOString(),
       next_data_in_seconds: secondsPerHour,
@@ -196,6 +149,8 @@ app.get('/api/simulations/start', (req, res) => {
     };
     
     console.log(`🚀 Started simulation ${simulationId} with ${secondsPerHour}s per hour`);
+    console.log(`   🏢 Foundry integration: ${simulation.foundryConfig ? 'ENABLED' : 'DISABLED'}`);
+    
     res.status(201).json(response);
     
   } catch (error) {
@@ -273,7 +228,7 @@ app.get('/api/simulations/:id/data', (req, res) => {
   }
 });
 
-// Stop simulation - CONVERTED TO GET REQUEST
+// Stop simulation
 app.get('/api/simulations/:id/stop', (req, res) => {
   try {
     const { id } = req.params;
@@ -311,7 +266,7 @@ app.get('/api/simulations/:id/stop', (req, res) => {
   }
 });
 
-// Update time compression - CONVERTED TO GET REQUEST
+// Update time compression
 app.get('/api/simulations/:id/time-compression', (req, res) => {
   try {
     const { id } = req.params;
@@ -374,7 +329,16 @@ app.use((err, req, res, next) => {
 app.use((req, res) => {
   res.status(404).json({
     status: 'error',
-    message: 'Endpoint not found'
+    message: 'Endpoint not found',
+    available_endpoints: [
+      'GET /health',
+      'GET /api/simulations',
+      'GET /api/simulations/start',
+      'GET /api/simulations/:id/status',
+      'GET /api/simulations/:id/data',
+      'GET /api/simulations/:id/stop',
+      'GET /api/simulations/:id/time-compression'
+    ]
   });
 });
 
@@ -388,16 +352,7 @@ process.on('SIGTERM', () => {
     simulation.stop();
   }
   
-  // Close WebSocket server
-  wss.close(() => {
-    console.log('🔌 WebSocket server closed');
-  });
-  
-  // Close HTTP server
-  server.close(() => {
-    console.log('🌐 HTTP server closed');
-    process.exit(0);
-  });
+  process.exit(0);
 });
 
 process.on('SIGINT', () => {
@@ -406,11 +361,11 @@ process.on('SIGINT', () => {
 });
 
 // Start server
-server.listen(PORT, () => {
+app.listen(PORT, () => {
   console.log(`🌐 Edinburgh City Simulation API running on port ${PORT}`);
-  console.log(`🔌 WebSocket server available at ws://localhost:${PORT}/ws`);
   console.log(`📊 Health check: http://localhost:${PORT}/health`);
   console.log(`🎯 Foundry integration: ${foundryEnabled ? 'ENABLED' : 'DISABLED'}`);
+  console.log(`🚀 Server mode: REST API Only (WebSocket removed)`);
   
   console.log('\n📋 Available GET Endpoints:');
   console.log(`   • GET  /health - Health check`);
