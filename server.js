@@ -1,96 +1,119 @@
-// server.js - Edinburgh City Simulation API optimized for Render deployment
+// server.js - Edinburgh City Simulation API with integrated Foundry configuration
 import express from 'express';
-import { createServer } from 'http';
 import { WebSocketServer } from 'ws';
+import { createServer } from 'http';
 import cors from 'cors';
-import { handleWebSocket } from './lib/websocket.js';
-import { activeSimulations, CitySimulation } from './lib/simulation.js';
+import dotenv from 'dotenv';
+import { CitySimulation, activeSimulations } from './lib/simulation.js';
+
+// Load environment variables
+dotenv.config();
 
 const app = express();
-const server = createServer(app);
-
-// WebSocket Server with explicit configuration for Render
-const wss = new WebSocketServer({ 
-  server,
-  path: '/ws',
-  perMessageDeflate: false // Better for Render
-});
+const PORT = process.env.PORT || 3000;
 
 // Middleware
-app.use(cors({
-  origin: '*',
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key']
-}));
+app.use(cors());
+app.use(express.json());
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
+// Create HTTP server
+const server = createServer(app);
 
-// Trust proxy for Render
-app.set('trust proxy', 1);
+// Create WebSocket server
+const wss = new WebSocketServer({ 
+  server,
+  path: '/ws'
+});
 
-// Health check endpoint (required for Render)
-app.get('/', (req, res) => {
-  const protocol = req.headers['x-forwarded-proto'] || req.protocol;
-  const host = req.headers['x-forwarded-host'] || req.get('host');
-  const baseUrl = `${protocol}://${host}`;
-  const wsUrl = baseUrl.replace('http', 'ws') + '/ws';
+// Validate Foundry configuration on startup (optional)
+function validateFoundryConfig() {
+  const foundryUrl = process.env.FOUNDRY_URL;
+  const clientId = process.env.FOUNDRY_CLIENT_ID;
+  const clientSecret = process.env.FOUNDRY_CLIENT_SECRET;
+  const streamRid = process.env.FOUNDRY_STREAM_RID;
   
-  res.json({
-    service: 'Edinburgh City Simulation API',
-    status: 'running',
-    version: '1.0.0',
-    environment: process.env.NODE_ENV || 'development',
-    timestamp: new Date().toISOString(),
-    active_simulations: activeSimulations.size,
-    server_info: {
-      uptime: process.uptime(),
-      memory_usage: process.memoryUsage(),
-      node_version: process.version
-    },
-    endpoints: {
-      websocket: wsUrl,
-      rest_api: {
-        base_url: baseUrl,
-        endpoints: {
-          list_simulations: 'GET /api/simulations',
-          start_simulation: 'POST /api/simulations/start',
-          get_simulation: 'GET /api/simulations/{id}',
-          stop_simulation: 'POST /api/simulations/{id}/stop',
-          get_snapshot: 'GET /api/simulations/{id}/snapshot',
-          update_time_compression: 'PUT /api/simulations/{id}/time-compression'
-        }
-      }
-    },
-    foundry_integration: {
-      supported: true,
-      rest_api_ready: true,
-      push_streams_supported: true
+  if (foundryUrl && clientId && clientSecret && streamRid) {
+    console.log('✅ Foundry configuration detected - integration enabled');
+    
+    // Validate URL format
+    if (!foundryUrl.startsWith('https://')) {
+      console.error('❌ FOUNDRY_URL must use HTTPS');
+      return false;
     }
+    
+    // Validate RID format
+    if (!streamRid.startsWith('ri.foundry.main.stream.')) {
+      console.error('❌ Invalid FOUNDRY_STREAM_RID format');
+      return false;
+    }
+    
+    return true;
+  } else {
+    console.log('⚠️ Foundry configuration incomplete - running without Foundry integration');
+    console.log('💡 To enable Foundry: Set FOUNDRY_URL, FOUNDRY_CLIENT_ID, FOUNDRY_CLIENT_SECRET, FOUNDRY_STREAM_RID');
+    return false;
+  }
+}
+
+// Check Foundry config on startup
+const foundryEnabled = validateFoundryConfig();
+
+// WebSocket connection handling
+wss.on('connection', (ws, request) => {
+  console.log('🔌 New WebSocket connection established');
+  
+  ws.on('message', (message) => {
+    try {
+      const data = JSON.parse(message.toString());
+      console.log('📨 Received WebSocket message:', data.type);
+      
+      // Handle different message types if needed
+      switch (data.type) {
+        case 'ping':
+          ws.send(JSON.stringify({ type: 'pong', timestamp: new Date().toISOString() }));
+          break;
+        default:
+          console.log('Unknown message type:', data.type);
+      }
+    } catch (error) {
+      console.error('❌ Error parsing WebSocket message:', error);
+    }
+  });
+  
+  ws.on('close', () => {
+    console.log('🔌 WebSocket connection closed');
+  });
+  
+  ws.on('error', (error) => {
+    console.error('❌ WebSocket error:', error);
   });
 });
 
-// Health check specifically for Render
+// =============================================================================
+// API ROUTES
+// =============================================================================
+
+// Health check endpoint
 app.get('/health', (req, res) => {
-  res.status(200).json({
+  res.json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
+    foundry_integration: foundryEnabled,
     active_simulations: activeSimulations.size
   });
 });
 
-// FOUNDRY-COMPATIBLE REST API ROUTES
-
-// List all active simulations
+// Get all simulations
 app.get('/api/simulations', (req, res) => {
   try {
-    const simulations = Array.from(activeSimulations.entries()).map(([id, sim]) => ({
-      simulation_id: id,
+    const simulations = Array.from(activeSimulations.values()).map(sim => ({
+      simulation_id: sim.id,
       is_running: sim.isRunning,
-      current_time: sim.currentTime?.toISOString(),
+      current_time: sim.currentTime.toISOString(),
       hour_counter: sim.hourCounter,
       seconds_per_hour: sim.secondsPerHour,
       foundry_integration: !!sim.foundryConfig,
+      foundry_connected: !!sim.foundryToken,
       uptime_hours: sim.hourCounter
     }));
     
@@ -98,183 +121,187 @@ app.get('/api/simulations', (req, res) => {
       status: 'success',
       timestamp: new Date().toISOString(),
       active_simulations: simulations.length,
-      simulations: simulations,
-      message: 'Edinburgh City Simulation API - Foundry Compatible',
-      server_uptime: process.uptime()
+      simulations: simulations
     });
   } catch (error) {
-    console.error('List simulations error:', error);
-    res.status(500).json({ 
+    console.error('❌ Error getting simulations:', error);
+    res.status(500).json({
       status: 'error',
-      error: 'Failed to list simulations', 
-      message: error.message,
-      timestamp: new Date().toISOString()
+      message: 'Failed to retrieve simulations',
+      error: error.message
     });
   }
 });
 
-// Start a new simulation (Foundry compatible)
-app.post('/api/simulations/start', async (req, res) => {
+// Start a new simulation - SIMPLIFIED (no foundry_config parameter)
+app.post('/api/simulations/start', (req, res) => {
   try {
-    const { 
-      seconds_per_hour = 10, 
-      foundry_config,
-      simulation_name = 'Edinburgh Simulation'
-    } = req.body || {};
+    const { seconds_per_hour = 10, simulation_name } = req.body;
     
-    console.log(`🚀 Starting new simulation: ${simulation_name}`);
-    
-    // Validate time compression parameter
-    if (!Number.isInteger(seconds_per_hour) || seconds_per_hour < 1 || seconds_per_hour > 3600) {
+    // Validate input
+    if (seconds_per_hour < 1 || seconds_per_hour > 3600) {
       return res.status(400).json({
         status: 'error',
-        error: 'Invalid time compression',
-        message: 'seconds_per_hour must be an integer between 1 and 3600',
-        received: seconds_per_hour
+        message: 'seconds_per_hour must be between 1 and 3600'
       });
     }
     
-    // Create REST-only WebSocket mock for Foundry integration
-    const foundryWS = {
-      send: (data) => {
-        try {
-          const parsed = JSON.parse(data);
-          console.log(`[Foundry] ${parsed.type}: Sim ${parsed.simulation_id}, Hour ${parsed.hour}`);
-        } catch (e) {
-          console.log('[Foundry] Data sent to stream');
-        }
-      },
-      readyState: 1 // WebSocket.OPEN
-    };
-    
     // Generate unique simulation ID
-    const simulationId = Date.now() + Math.floor(Math.random() * 10000);
+    const simulationId = `sim_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
-    // Create simulation instance
+    // Find available WebSocket connection
+    const availableWS = Array.from(wss.clients).find(ws => ws.readyState === 1);
+    
+    if (!availableWS) {
+      return res.status(503).json({
+        status: 'error',
+        message: 'No WebSocket connections available'
+      });
+    }
+    
+    // Create simulation (Foundry config loaded automatically from environment)
     const simulation = new CitySimulation(
-      foundryWS, 
-      simulationId, 
-      seconds_per_hour, 
-      foundry_config
+      availableWS,
+      simulationId,
+      seconds_per_hour
+      // No foundry_config parameter - handled internally
     );
     
-    // Store and start simulation
+    // Store simulation
     activeSimulations.set(simulationId, simulation);
+    
+    // Start simulation
     simulation.start();
     
-    console.log(`✅ Started simulation ${simulationId} for Foundry integration`);
-    
-    res.status(201).json({
+    const response = {
       status: 'success',
       simulation_id: simulationId,
-      simulation_name: simulation_name,
+      simulation_name: simulation_name || `Edinburgh Simulation ${simulationId}`,
       seconds_per_hour: seconds_per_hour,
-      simulation_status: 'started',
-      foundry_integration: !!foundry_config,
-      message: `Simulation started - data updates every ${seconds_per_hour} seconds`,
+      simulation_status: 'starting',
+      foundry_integration: !!simulation.foundryConfig,
+      message: 'Simulation started successfully',
       started_at: new Date().toISOString(),
       next_data_in_seconds: seconds_per_hour,
       api_endpoints: {
-        status: `/api/simulations/${simulationId}`,
-        stop: `/api/simulations/${simulationId}/stop`,
-        time_compression: `/api/simulations/${simulationId}/time-compression`
+        status: `/api/simulations/${simulationId}/status`,
+        snapshot: `/api/simulations/${simulationId}/data`,
+        stop: `/api/simulations/${simulationId}/stop`
       }
-    });
+    };
+    
+    console.log(`🚀 Started simulation ${simulationId} with ${seconds_per_hour}s per hour`);
+    res.status(201).json(response);
     
   } catch (error) {
-    console.error('❌ Start simulation error:', error);
-    res.status(500).json({ 
+    console.error('❌ Error starting simulation:', error);
+    res.status(500).json({
       status: 'error',
-      error: 'Failed to start simulation', 
-      message: error.message,
-      timestamp: new Date().toISOString()
+      message: 'Failed to start simulation',
+      error: error.message
     });
   }
 });
 
-// Get specific simulation data (consolidated endpoint)
-app.get('/api/simulations/:id', (req, res) => {
+// Get simulation status
+app.get('/api/simulations/:id/status', (req, res) => {
   try {
-    const simId = parseInt(req.params.id);
+    const { id } = req.params;
+    const simulation = activeSimulations.get(id);
     
-    if (isNaN(simId)) {
-      return res.status(400).json({ 
+    if (!simulation) {
+      return res.status(404).json({
         status: 'error',
-        error: 'Invalid simulation ID format',
-        received: req.params.id
+        message: 'Simulation not found'
       });
     }
     
-    const simulation = activeSimulations.get(simId);
+    const status = simulation.getSimulationStatus();
+    res.json({
+      status: 'success',
+      timestamp: new Date().toISOString(),
+      ...status
+    });
+    
+  } catch (error) {
+    console.error('❌ Error getting simulation status:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to get simulation status',
+      error: error.message
+    });
+  }
+});
+
+// Get current simulation data snapshot
+app.get('/api/simulations/:id/data', (req, res) => {
+  try {
+    const { id } = req.params;
+    const simulation = activeSimulations.get(id);
+    
     if (!simulation) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         status: 'error',
-        error: 'Simulation not found',
-        simulation_id: simId,
-        active_simulations: Array.from(activeSimulations.keys())
+        message: 'Simulation not found'
       });
     }
     
     const snapshot = simulation.getCurrentSnapshot();
-    
-    res.json({
-      status: 'success',
-      retrieved_at: new Date().toISOString(),
-      server_time: new Date().toISOString(),
-      ...snapshot
-    });
+    res.json(snapshot);
     
   } catch (error) {
-    console.error('Get simulation data error:', error);
-    res.status(500).json({ 
-      status: 'error',
-      error: 'Failed to get simulation data', 
-      message: error.message 
-    });
+    console.error('❌ Error getting simulation data:', error);
+    
+    if (error.message.includes('No simulation data available yet')) {
+      res.status(202).json({
+        status: 'starting',
+        message: 'Simulation is starting up, please try again in a few seconds',
+        retry_after: 5
+      });
+    } else {
+      res.status(500).json({
+        status: 'error',
+        message: 'Failed to get simulation data',
+        error: error.message
+      });
+    }
   }
 });
 
 // Stop simulation
 app.post('/api/simulations/:id/stop', (req, res) => {
   try {
-    const simId = parseInt(req.params.id);
+    const { id } = req.params;
+    const simulation = activeSimulations.get(id);
     
-    if (isNaN(simId)) {
-      return res.status(400).json({ 
-        status: 'error',
-        error: 'Invalid simulation ID format' 
-      });
-    }
-    
-    const simulation = activeSimulations.get(simId);
     if (!simulation) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         status: 'error',
-        error: 'Simulation not found',
-        simulation_id: simId 
+        message: 'Simulation not found'
       });
     }
     
+    const finalHour = simulation.hourCounter;
     simulation.stop();
-    activeSimulations.delete(simId);
-    
-    console.log(`🛑 Stopped simulation ${simId}`);
+    activeSimulations.delete(id);
     
     res.json({
       status: 'success',
-      simulation_id: simId,
+      simulation_id: id,
       simulation_status: 'stopped',
       message: 'Simulation stopped successfully',
       stopped_at: new Date().toISOString(),
-      final_hour: simulation.hourCounter
+      final_hour: finalHour
     });
     
+    console.log(`⏹️ Stopped simulation ${id} at hour ${finalHour}`);
+    
   } catch (error) {
-    console.error('Stop simulation error:', error);
-    res.status(500).json({ 
+    console.error('❌ Error stopping simulation:', error);
+    res.status(500).json({
       status: 'error',
-      error: 'Failed to stop simulation', 
-      message: error.message 
+      message: 'Failed to stop simulation',
+      error: error.message
     });
   }
 });
@@ -282,153 +309,109 @@ app.post('/api/simulations/:id/stop', (req, res) => {
 // Update time compression
 app.put('/api/simulations/:id/time-compression', (req, res) => {
   try {
-    const simId = parseInt(req.params.id);
+    const { id } = req.params;
+    const { seconds_per_hour } = req.body;
     
-    if (isNaN(simId)) {
-      return res.status(400).json({ 
-        status: 'error',
-        error: 'Invalid simulation ID format' 
-      });
-    }
-    
-    const simulation = activeSimulations.get(simId);
-    if (!simulation) {
-      return res.status(404).json({ 
-        status: 'error',
-        error: 'Simulation not found',
-        simulation_id: simId 
-      });
-    }
-    
-    const { seconds_per_hour } = req.body || {};
-    
-    if (!Number.isInteger(seconds_per_hour) || seconds_per_hour < 1 || seconds_per_hour > 3600) {
+    if (!seconds_per_hour || seconds_per_hour < 1 || seconds_per_hour > 3600) {
       return res.status(400).json({
         status: 'error',
-        error: 'Invalid time compression',
-        message: 'seconds_per_hour must be an integer between 1 and 3600',
-        received: seconds_per_hour
+        message: 'seconds_per_hour must be between 1 and 3600'
       });
     }
     
-    const oldSpeed = simulation.secondsPerHour;
-    simulation.updateTimeCompression(seconds_per_hour);
+    const simulation = activeSimulations.get(id);
     
-    console.log(`⚡ Updated simulation ${simId} time compression: ${oldSpeed}s → ${seconds_per_hour}s per hour`);
+    if (!simulation) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Simulation not found'
+      });
+    }
+    
+    const previousSecondsPerHour = simulation.secondsPerHour;
+    simulation.updateTimeCompression(seconds_per_hour);
     
     res.json({
       status: 'success',
-      simulation_id: simId,
+      simulation_id: id,
       seconds_per_hour: seconds_per_hour,
-      previous_seconds_per_hour: oldSpeed,
-      simulation_status: 'time_compression_updated',
-      message: `Time compression updated to ${seconds_per_hour} seconds per game hour`,
+      previous_seconds_per_hour: previousSecondsPerHour,
+      simulation_status: simulation.isRunning ? 'running' : 'stopped',
+      message: 'Time compression updated successfully',
       updated_at: new Date().toISOString()
     });
     
+    console.log(`⏰ Updated simulation ${id} time compression: ${previousSecondsPerHour}s → ${seconds_per_hour}s per hour`);
+    
   } catch (error) {
-    console.error('Update time compression error:', error);
-    res.status(500).json({ 
+    console.error('❌ Error updating time compression:', error);
+    res.status(500).json({
       status: 'error',
-      error: 'Failed to update time compression', 
-      message: error.message 
+      message: 'Failed to update time compression',
+      error: error.message
     });
   }
 });
 
-// WebSocket connection handling
-wss.on('connection', (ws, req) => {
-  const clientIP = req.headers['x-forwarded-for'] || 
-                   req.headers['x-real-ip'] || 
-                   req.connection.remoteAddress;
-  
-  console.log(`🔌 New WebSocket connection from ${clientIP}`);
-  
-  // Send welcome message
-  ws.send(JSON.stringify({
-    type: 'connection_established',
-    message: 'Connected to Edinburgh City Simulation WebSocket',
-    server_time: new Date().toISOString(),
-    server_uptime: process.uptime(),
-    active_simulations: activeSimulations.size,
-    instructions: {
-      start_simulation: { action: 'startSimulation', seconds_per_hour: 10 },
-      stop_simulation: { action: 'stopSimulation' },
-      update_time: { action: 'updateTimeCompression', seconds_per_hour: 30 }
-    }
-  }));
-  
-  handleWebSocket(ws, req);
-  
-  ws.on('close', (code, reason) => {
-    console.log(`🔌 WebSocket disconnected from ${clientIP}: ${code} ${reason}`);
-  });
-  
-  ws.on('error', (error) => {
-    console.error(`❌ WebSocket error from ${clientIP}:`, error.message);
-  });
-});
-
 // Error handling middleware
-app.use((error, req, res, next) => {
-  console.error('Express error:', error);
+app.use((err, req, res, next) => {
+  console.error('❌ Unhandled error:', err);
   res.status(500).json({
     status: 'error',
-    error: 'Internal server error',
-    message: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong',
-    timestamp: new Date().toISOString()
+    message: 'Internal server error',
+    error: process.env.NODE_ENV === 'development' ? err.message : 'An error occurred'
   });
 });
 
 // 404 handler
-app.use('*', (req, res) => {
+app.use((req, res) => {
   res.status(404).json({
     status: 'error',
-    error: 'Endpoint not found',
-    path: req.originalUrl,
-    method: req.method,
-    timestamp: new Date().toISOString(),
-    available_endpoints: [
-      'GET /',
-      'GET /health',
-      'GET /api/simulations',
-      'POST /api/simulations/start',
-      'GET /api/simulations/{id}',
-      'POST /api/simulations/{id}/stop',
-      'PUT /api/simulations/{id}/time-compression'
-    ]
+    message: 'Endpoint not found'
   });
-});
-
-// Start server
-const PORT = process.env.PORT || 3000;
-const HOST = '0.0.0.0'; // Required for Render
-
-server.listen(PORT, HOST, () => {
-  console.log(`🚀 Edinburgh City Simulation API running on ${HOST}:${PORT}`);
-  console.log(`📡 WebSocket: ws://localhost:${PORT}/ws`);
-  console.log(`🌐 REST API: http://localhost:${PORT}/api/simulations`);
-  console.log(`🏗️  Foundry Integration: Ready`);
-  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
 });
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
-  console.log('🛑 Received SIGTERM, shutting down gracefully...');
+  console.log('🛑 SIGTERM received, shutting down gracefully...');
   
   // Stop all active simulations
   for (const [id, simulation] of activeSimulations.entries()) {
+    console.log(`⏹️ Stopping simulation ${id}...`);
     simulation.stop();
-    console.log(`Stopped simulation ${id}`);
   }
   
+  // Close WebSocket server
+  wss.close(() => {
+    console.log('🔌 WebSocket server closed');
+  });
+  
+  // Close HTTP server
   server.close(() => {
-    console.log('✅ Server closed');
+    console.log('🌐 HTTP server closed');
     process.exit(0);
   });
 });
 
 process.on('SIGINT', () => {
-  console.log('🛑 Received SIGINT, shutting down...');
-  process.kill(process.pid, 'SIGTERM');
+  console.log('🛑 SIGINT received, shutting down gracefully...');
+  process.emit('SIGTERM');
 });
+
+// Start server
+server.listen(PORT, () => {
+  console.log(`🌐 Edinburgh City Simulation API running on port ${PORT}`);
+  console.log(`🔌 WebSocket server available at ws://localhost:${PORT}/ws`);
+  console.log(`📊 Health check: http://localhost:${PORT}/health`);
+  console.log(`🎯 Foundry integration: ${foundryEnabled ? 'ENABLED' : 'DISABLED'}`);
+  
+  if (!foundryEnabled) {
+    console.log('💡 To enable Foundry integration, set these environment variables:');
+    console.log('   - FOUNDRY_URL');
+    console.log('   - FOUNDRY_CLIENT_ID');
+    console.log('   - FOUNDRY_CLIENT_SECRET');
+    console.log('   - FOUNDRY_STREAM_RID');
+  }
+});
+
+export default app;
