@@ -64,17 +64,20 @@ app.get('/api/simulations', (req, res) => {
   }
 });
 
-// Start a new simulation - CORRECTED to match StartSimulationResponseInterface
-app.post('/api/simulations/start', async (req, res) => {
+// Start a new simulation - GET method for Foundry compatibility
+app.get('/api/simulations/start', async (req, res) => {
   try {
     const { 
       seconds_per_hour = 60, 
       simulation_name = `simulation_${Date.now()}`,
-      simulation_id // Optional parameter from request body
-    } = req.body;
+      simulation_id // Optional parameter from query string
+    } = req.query;
+    
+    // Convert seconds_per_hour to number from query string
+    const secondsPerHour = parseInt(seconds_per_hour) || 60;
     
     // Validate seconds_per_hour
-    if (seconds_per_hour < 1 || seconds_per_hour > 3600) {
+    if (secondsPerHour < 1 || secondsPerHour > 3600) {
       return res.status(400).json({
         status: 'error',
         message: 'seconds_per_hour must be between 1 and 3600'
@@ -92,10 +95,10 @@ app.post('/api/simulations/start', async (req, res) => {
       });
     }
     
-    console.log(`🚀 Starting new simulation: ${simId} (${seconds_per_hour}s per hour)`);
+    console.log(`🚀 Starting new simulation: ${simId} (${secondsPerHour}s per hour)`);
     
     // Create and initialize simulation
-    const simulation = new CitySimulation(simId, seconds_per_hour);
+    const simulation = new CitySimulation(simId, secondsPerHour);
     
     // Store simulation
     activeSimulations.set(simId, simulation);
@@ -108,12 +111,12 @@ app.post('/api/simulations/start', async (req, res) => {
       status: 'success',
       simulation_id: simId,
       simulation_name: simulation_name,
-      seconds_per_hour: parseInt(seconds_per_hour), // Ensure Integer
+      seconds_per_hour: secondsPerHour, // Use converted number
       simulation_status: 'running',
       foundry_integration: !!simulation.foundryConfig,
       message: 'Simulation started successfully',
       started_at: new Date().toISOString(),
-      next_data_in_seconds: parseInt(seconds_per_hour), // Integer
+      next_data_in_seconds: secondsPerHour, // Use converted number
       api_endpoints: {
         status: `/api/simulations/${simId}/status`,
         snapshot: `/api/simulations/${simId}/data`,
@@ -131,8 +134,8 @@ app.post('/api/simulations/start', async (req, res) => {
   }
 });
 
-// Stop a specific simulation - CORRECTED to match StopSimulationResponseInterface
-app.post('/api/simulations/:id/stop', (req, res) => {
+// Stop a specific simulation - GET method for Foundry compatibility
+app.get('/api/simulations/:id/stop', (req, res) => {
   try {
     const { id } = req.params;
     const simulation = activeSimulations.get(id);
@@ -364,13 +367,16 @@ app.get('/api/simulations/:id/data', (req, res) => {
   }
 });
 
-// Update simulation time compression - CORRECTED to match UpdateTimeCompressionResponseInterface
-app.put('/api/simulations/:id/time-compression', (req, res) => {
+// Update simulation time compression - GET method for Foundry compatibility
+app.get('/api/simulations/:id/time-compression', (req, res) => {
   try {
     const { id } = req.params;
-    const { seconds_per_hour } = req.body;
+    const { seconds_per_hour } = req.query; // Get from query string instead of body
     
-    if (!seconds_per_hour || seconds_per_hour < 1 || seconds_per_hour > 3600) {
+    // Convert to number from query string
+    const secondsPerHour = parseInt(seconds_per_hour);
+    
+    if (!secondsPerHour || secondsPerHour < 1 || secondsPerHour > 3600) {
       return res.status(400).json({
         status: 'error',
         message: 'seconds_per_hour must be between 1 and 3600'
@@ -387,13 +393,13 @@ app.put('/api/simulations/:id/time-compression', (req, res) => {
     }
     
     const oldCompression = simulation.secondsPerHour;
-    simulation.updateTimeCompression(seconds_per_hour);
+    simulation.updateTimeCompression(secondsPerHour);
     
     // Match UpdateTimeCompressionResponseInterface exactly
     res.json({
       status: 'success',
       simulation_id: id,
-      seconds_per_hour: parseInt(seconds_per_hour), // Ensure Integer
+      seconds_per_hour: secondsPerHour, // Use converted number
       previous_seconds_per_hour: parseInt(oldCompression), // Ensure Integer
       simulation_status: simulation.isRunning ? 'running' : 'stopped',
       message: 'Time compression updated successfully',
