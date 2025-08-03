@@ -111,12 +111,12 @@ app.get('/api/simulations/start', async (req, res) => {
       status: 'success',
       simulation_id: simId,
       simulation_name: simulation_name,
-      seconds_per_hour: secondsPerHour, // Use converted number
+      seconds_per_hour: String(secondsPerHour), 
       simulation_status: 'running',
       foundry_integration: !!simulation.foundryConfig,
       message: 'Simulation started successfully',
       started_at: new Date().toISOString(),
-      next_data_in_seconds: secondsPerHour, // Use converted number
+      next_data_in_seconds: String(secondsPerHour), // Use converted number
       api_endpoints: {
         status: `/api/simulations/${simId}/status`,
         snapshot: `/api/simulations/${simId}/data`,
