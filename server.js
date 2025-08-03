@@ -134,10 +134,6 @@ app.get('/api/simulations/start', (req, res) => {
       seconds_per_hour: secondsPerHour,
       simulation_status: 'running',
       foundry_integration: !!simulation.foundryConfig,
-      data_streaming: {
-        foundry_push: !!simulation.foundryConfig ? 'ENABLED' : 'DISABLED',
-        api_access: 'ENABLED'
-      },
       message: 'Simulation started successfully',
       started_at: new Date().toISOString(),
       next_data_in_seconds: secondsPerHour,
