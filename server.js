@@ -333,10 +333,6 @@ app.get('/api/simulations/:id/data', (req, res) => {
         datazones: (snapshot.traffic?.datazones || []).map(zone => ({
           datazone_code: zone.datazone_code || '',
           datazone_congestion: parseFloat(zone.datazone_congestion || 0), // Ensure Double
-          street_congestion: (zone.street_congestion || []).map(street => ({
-            street_id: parseInt(street.street_id || 0), // Ensure Integer
-            congestion_level: parseFloat(street.congestion_level || 0) // Ensure Double
-          })),
           area_type: zone.area_type || 'unknown',
           congestion_trend: parseFloat(zone.congestion_trend || 0), // Ensure Double
           estimated_vehicles: parseInt(zone.estimated_vehicles || 0), // Ensure Integer
