@@ -304,10 +304,9 @@ app.get('/api/simulations/:id/data', (req, res) => {
         active_count: parseInt(snapshot.events?.active_count || 0), // Ensure Integer
         scheduled_count: parseInt(snapshot.events?.scheduled_count || 0), // Ensure Integer
         completed_count: parseInt(snapshot.events?.completed_count || 0), // Ensure Integer
-        total_count: parseInt(snapshot.events?.total_count || 0), // Ensure Integer
         events: (snapshot.events?.events || []).map(event => ({
           id: parseInt(event.id || 0), // Ensure Integer
-          type: event.type || 'unknown',
+          event_type: event.type || 'unknown',
           name: event.name || 'Unnamed Event',
           description: event.description || '',
           datazones: event.datazones || [],
