@@ -33,25 +33,25 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Get all active simulations - CORRECTED to match GetAllSimulationsInterface
+// Get all active simulations
 app.get('/api/simulations', (req, res) => {
   try {
     const simulations = Array.from(activeSimulations.entries()).map(([id, sim]) => ({
-      simulation_id: id, // Keep as string (matches interface)
+      simulation_id: id,
       is_running: sim.isRunning,
       current_time: sim.currentTime.toISOString(),
-      hour_counter: parseInt(sim.hourCounter), // Ensure Integer type
-      seconds_per_hour: parseInt(sim.secondsPerHour), // Ensure Integer type
+      hour_counter: parseInt(sim.hourCounter),
+      seconds_per_hour: parseInt(sim.secondsPerHour),
       foundry_integration: !!sim.foundryConfig,
       foundry_connected: !!sim.foundryToken,
-      uptime_hours: parseInt(sim.hourCounter) // Ensure Integer type
+      uptime_hours: parseInt(sim.hourCounter),
+      is_initialized: sim.isInitialized
     }));
 
-    // Match GetAllSimulationsInterface exactly
     res.json({
       status: 'success',
       timestamp: new Date().toISOString(),
-      active_simulations: simulations.length, // Integer count
+      active_simulations: simulations.length,
       simulations: simulations
     });
   } catch (error) {
@@ -64,19 +64,17 @@ app.get('/api/simulations', (req, res) => {
   }
 });
 
-// Start a new simulation - GET method for Foundry compatibility
+// Start a new simulation
 app.get('/api/simulations/start', async (req, res) => {
   try {
     const { 
       seconds_per_hour = 60, 
       simulation_name = `simulation_${Date.now()}`,
-      simulation_id // Optional parameter from query string
+      simulation_id
     } = req.query;
     
-    // Convert seconds_per_hour to number from query string
     const secondsPerHour = parseInt(seconds_per_hour) || 60;
     
-    // Validate seconds_per_hour
     if (secondsPerHour < 1 || secondsPerHour > 3600) {
       return res.status(400).json({
         status: 'error',
@@ -84,10 +82,8 @@ app.get('/api/simulations/start', async (req, res) => {
       });
     }
     
-    // Generate simulation ID - use provided ID or generate new one
     const simId = simulation_id || `sim_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
-    // Check if simulation already exists
     if (activeSimulations.has(simId)) {
       return res.status(409).json({
         status: 'error',
@@ -97,16 +93,12 @@ app.get('/api/simulations/start', async (req, res) => {
     
     console.log(`🚀 Starting new simulation: ${simId} (${secondsPerHour}s per hour)`);
     
-    // Create and initialize simulation
     const simulation = new CitySimulation(simId, secondsPerHour);
-    
-    // Store simulation
     activeSimulations.set(simId, simulation);
     
-    // Start the simulation
-    simulation.start();
+    // Start the simulation (this will initialize and generate first hour)
+    await simulation.start();
     
-    // Match StartSimulationResponseInterface exactly
     res.status(201).json({
       status: 'success',
       simulation_id: simId,
@@ -116,10 +108,10 @@ app.get('/api/simulations/start', async (req, res) => {
       foundry_integration: !!simulation.foundryConfig,
       message: 'Simulation started successfully',
       started_at: new Date().toISOString(),
-      next_data_in_seconds: String(secondsPerHour), // Use converted number
       api_endpoints: {
         status: `/api/simulations/${simId}/status`,
-        snapshot: `/api/simulations/${simId}/data`,
+        current_data: `/api/simulations/${simId}/data`,
+        advance_hour: `/api/simulations/${simId}/advance`,
         stop: `/api/simulations/${simId}/stop`
       }
     });
@@ -134,7 +126,191 @@ app.get('/api/simulations/start', async (req, res) => {
   }
 });
 
-// Stop a specific simulation - GET method for Foundry compatibility
+// NEW: Advance simulation by one hour
+app.get('/api/simulations/:id/advance', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const simulation = activeSimulations.get(id);
+    
+    if (!simulation) {
+      return res.status(404).json({
+        status: 'error',
+        message: `Simulation ${id} not found`
+      });
+    }
+    
+    if (!simulation.isRunning) {
+      return res.status(400).json({
+        status: 'error',
+        message: `Simulation ${id} is not running`
+      });
+    }
+    
+    // Advance the simulation by one hour
+    const nextHourData = await simulation.advanceOneHour();
+    
+    // Transform to match API interface
+    const transformedData = {
+      status: 'success',
+      retrieved_at: new Date().toISOString(),
+      server_time: new Date().toISOString(),
+      simulation_id: id,
+      timestamp: nextHourData.timestamp,
+      hour: parseInt(nextHourData.hour),
+      is_running: simulation.isRunning,
+      weather: {
+        temperature: parseFloat(nextHourData.weather.temperature),
+        humidity: parseInt(nextHourData.weather.humidity),
+        windSpeed: parseFloat(nextHourData.weather.windSpeed),
+        condition: nextHourData.weather.condition,
+        pressure: parseFloat(nextHourData.weather.pressure)
+      },
+      events: {
+        active_count: parseInt(nextHourData.events.active_count),
+        scheduled_count: parseInt(nextHourData.events.scheduled_count),
+        completed_count: parseInt(nextHourData.events.completed_count),
+        events: nextHourData.events.events.map(event => ({
+          id: parseInt(event.id),
+          event_type: event.type,
+          name: event.name,
+          description: event.description,
+          datazones: event.datazones,
+          impact_factor: parseFloat(event.impact_factor),
+          start_hour: parseInt(event.start_hour),
+          end_hour: parseInt(event.end_hour),
+          duration_hours: parseInt(event.duration_hours),
+          scheduled_start_time: event.scheduled_start_time,
+          actual_start_time: event.actual_start_time || '',
+          actual_end_time: event.actual_end_time || '',
+          status: event.status,
+          hours_until_start: parseInt(event.hours_until_start ?? -1),
+          hours_remaining: parseInt(event.hours_remaining ?? -1)
+        }))
+      },
+      traffic: {
+        congestion_level: parseFloat(nextHourData.traffic.congestion_level),
+        average_speed: parseFloat(nextHourData.traffic.average_speed),
+        total_vehicles: parseInt(nextHourData.traffic.total_vehicles),
+        peak_hour: nextHourData.traffic.peak_hour,
+        weather_impact: parseFloat(nextHourData.traffic.weather_impact),
+        events_impact: parseFloat(nextHourData.traffic.events_impact),
+        datazones: nextHourData.traffic.datazones.map(zone => ({
+          datazone_code: zone.datazone_code,
+          datazone_congestion: parseFloat(zone.datazone_congestion),
+          area_type: zone.area_type,
+          congestion_trend: parseFloat(zone.congestion_trend),
+          estimated_vehicles: parseInt(Math.round(zone.datazone_congestion * 50)),
+          average_speed: parseFloat(Math.max(5, 50 - (zone.datazone_congestion * 8)).toFixed(1))
+        }))
+      }
+    };
+    
+    res.json(transformedData);
+    
+  } catch (error) {
+    console.error(`Error advancing simulation ${req.params.id}:`, error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to advance simulation',
+      error: error.message
+    });
+  }
+});
+
+// Get current simulation data (without advancing)
+app.get('/api/simulations/:id/data', (req, res) => {
+  try {
+    const { id } = req.params;
+    const simulation = activeSimulations.get(id);
+    
+    if (!simulation) {
+      return res.status(404).json({
+        status: 'error',
+        message: `Simulation ${id} not found`
+      });
+    }
+    
+    const snapshot = simulation.getCurrentSnapshot();
+    
+    // Transform the snapshot to match GetSimulationDataInterface exactly
+    const transformedSnapshot = {
+      status: 'success',
+      retrieved_at: new Date().toISOString(),
+      server_time: new Date().toISOString(),
+      simulation_id: id,
+      timestamp: snapshot.timestamp || new Date().toISOString(),
+      hour: parseInt(snapshot.hour || 0),
+      is_running: simulation.isRunning,
+      weather: {
+        temperature: parseFloat(snapshot.weather?.temperature || 15.0),
+        humidity: parseInt(snapshot.weather?.humidity || 65),
+        windSpeed: parseFloat(snapshot.weather?.windSpeed || 5.0),
+        condition: snapshot.weather?.condition || 'clear',
+        pressure: parseFloat(snapshot.weather?.pressure || 1013.25)
+      },
+      events: {
+        active_count: parseInt(snapshot.events?.active_count || 0),
+        scheduled_count: parseInt(snapshot.events?.scheduled_count || 0),
+        completed_count: parseInt(snapshot.events?.completed_count || 0),
+        events: (snapshot.events?.events || []).map(event => ({
+          id: parseInt(event.id || 0),
+          event_type: event.type || 'unknown',
+          name: event.name || 'Unnamed Event',
+          description: event.description || '',
+          datazones: event.datazones || [],
+          impact_factor: parseFloat(event.impact_factor || 1.0),
+          start_hour: parseInt(event.start_hour || 0),
+          end_hour: parseInt(event.end_hour || 0),
+          duration_hours: parseInt(event.duration_hours || 0),
+          scheduled_start_time: event.scheduled_start_time || '',
+          actual_start_time: event.actual_start_time || '',
+          actual_end_time: event.actual_end_time || '',
+          status: event.status || 'unknown',
+          hours_until_start: parseInt(event.hours_until_start ?? -1),
+          hours_remaining: parseInt(event.hours_remaining ?? -1)
+        }))
+      },
+      traffic: {
+        congestion_level: parseFloat(snapshot.traffic?.congestion_level || 0),
+        average_speed: parseFloat(snapshot.traffic?.average_speed || 0),
+        total_vehicles: parseInt(snapshot.traffic?.total_vehicles || 0),
+        peak_hour: snapshot.traffic?.peak_hour || false,
+        weather_impact: parseFloat(snapshot.traffic?.weather_impact || 1.0),
+        events_impact: parseFloat(snapshot.traffic?.events_impact || 1.0),
+        datazones: (snapshot.traffic?.datazones || []).map(zone => ({
+          datazone_code: zone.datazone_code || '',
+          datazone_congestion: parseFloat(zone.datazone_congestion || 0),
+          area_type: zone.area_type || 'unknown',
+          congestion_trend: parseFloat(zone.congestion_trend || 0),
+          estimated_vehicles: parseInt(zone.estimated_vehicles || 0),
+          average_speed: parseFloat(zone.average_speed || 0)
+        }))
+      }
+    };
+    
+    res.json(transformedSnapshot);
+    
+  } catch (error) {
+    console.error(`Error getting simulation ${req.params.id} data:`, error);
+    
+    if (error.message && error.message.includes('No simulation data available yet')) {
+      res.status(202).json({
+        status: 'starting',
+        message: 'Simulation is starting up, data will be available shortly',
+        simulation_id: req.params.id,
+        retry_after: 5
+      });
+    } else {
+      res.status(500).json({
+        status: 'error',
+        message: 'Failed to get simulation data',
+        error: error.message
+      });
+    }
+  }
+});
+
+// Stop a specific simulation
 app.get('/api/simulations/:id/stop', (req, res) => {
   try {
     const { id } = req.params;
@@ -153,14 +329,13 @@ app.get('/api/simulations/:id/stop', (req, res) => {
     
     console.log(`⏹️ Stopped simulation: ${id}`);
     
-    // Match StopSimulationResponseInterface exactly
     res.json({
       status: 'success',
       simulation_id: id,
       simulation_status: 'stopped',
       message: `Simulation ${id} stopped successfully`,
       stopped_at: new Date().toISOString(),
-      final_hour: parseInt(finalHour) // Ensure Integer
+      final_hour: parseInt(finalHour)
     });
     
   } catch (error) {
@@ -173,20 +348,19 @@ app.get('/api/simulations/:id/stop', (req, res) => {
   }
 });
 
-// Stop all active simulations - Updated for consistency
+// Stop all active simulations
 app.post('/api/simulations/stop', (req, res) => {
   try {
     const stoppedSimulations = [];
     const errors = [];
     
-    // Stop all active simulations
     for (const [id, simulation] of activeSimulations.entries()) {
       try {
         simulation.stop();
         stoppedSimulations.push({
           simulation_id: id,
           status: 'stopped',
-          uptime_hours: parseInt(simulation.hourCounter) // Ensure Integer
+          uptime_hours: parseInt(simulation.hourCounter)
         });
         console.log(`⏹️ Stopped simulation: ${id}`);
       } catch (error) {
@@ -198,7 +372,6 @@ app.post('/api/simulations/stop', (req, res) => {
       }
     }
     
-    // Clear all simulations from memory
     activeSimulations.clear();
     
     const response = {
@@ -229,7 +402,7 @@ app.post('/api/simulations/stop', (req, res) => {
   }
 });
 
-// Get simulation status - CORRECTED to match GetSimulationStatusInterface
+// Get simulation status
 app.get('/api/simulations/:id/status', (req, res) => {
   try {
     const { id } = req.params;
@@ -242,18 +415,18 @@ app.get('/api/simulations/:id/status', (req, res) => {
       });
     }
     
-    // Match GetSimulationStatusInterface exactly
     res.json({
       status: 'success',
       timestamp: new Date().toISOString(),
       simulation_id: id,
       is_running: simulation.isRunning,
+      is_initialized: simulation.isInitialized,
       current_time: simulation.currentTime.toISOString(),
-      hour_counter: parseInt(simulation.hourCounter), // Ensure Integer
-      seconds_per_hour: parseInt(simulation.secondsPerHour), // Ensure Integer
+      hour_counter: parseInt(simulation.hourCounter),
+      seconds_per_hour: parseInt(simulation.secondsPerHour),
       foundry_integration: !!simulation.foundryConfig,
       foundry_connected: !!simulation.foundryToken,
-      uptime_hours: parseInt(simulation.hourCounter), // Ensure Integer
+      uptime_hours: parseInt(simulation.hourCounter),
       created_at: simulation.currentTime ? 
         new Date(simulation.currentTime.getTime() - (simulation.hourCounter * 60 * 60 * 1000)).toISOString() 
         : new Date().toISOString()
@@ -269,106 +442,12 @@ app.get('/api/simulations/:id/status', (req, res) => {
   }
 });
 
-// Get current simulation data - CORRECTED to match GetSimulationDataInterface
-app.get('/api/simulations/:id/data', (req, res) => {
-  try {
-    const { id } = req.params;
-    const simulation = activeSimulations.get(id);
-    
-    if (!simulation) {
-      return res.status(404).json({
-        status: 'error',
-        message: `Simulation ${id} not found`
-      });
-    }
-    
-    const snapshot = simulation.getCurrentSnapshot();
-    
-    // Transform the snapshot to match GetSimulationDataInterface exactly
-    const transformedSnapshot = {
-      status: 'success',
-      retrieved_at: new Date().toISOString(),
-      server_time: new Date().toISOString(),
-      simulation_id: id,
-      timestamp: snapshot.timestamp || new Date().toISOString(),
-      hour: parseInt(snapshot.hour || 0), // Ensure Integer
-      is_running: simulation.isRunning,
-      weather: {
-        temperature: parseFloat(snapshot.weather?.temperature || 15.0), // Ensure Double
-        humidity: parseInt(snapshot.weather?.humidity || 65), // Ensure Integer
-        windSpeed: parseFloat(snapshot.weather?.windSpeed || 5.0), // Ensure Double
-        condition: snapshot.weather?.condition || 'clear',
-        pressure: parseFloat(snapshot.weather?.pressure || 1013.25) // Ensure Double
-      },
-      events: {
-        active_count: parseInt(snapshot.events?.active_count || 0), // Ensure Integer
-        scheduled_count: parseInt(snapshot.events?.scheduled_count || 0), // Ensure Integer
-        completed_count: parseInt(snapshot.events?.completed_count || 0), // Ensure Integer
-        events: (snapshot.events?.events || []).map(event => ({
-          id: parseInt(event.id || 0), // Ensure Integer
-          event_type: event.type || 'unknown',
-          name: event.name || 'Unnamed Event',
-          description: event.description || '',
-          datazones: event.datazones || [],
-          impact_factor: parseFloat(event.impact_factor || 1.0), // Ensure Double
-          start_hour: parseInt(event.start_hour || 0), // Ensure Integer
-          end_hour: parseInt(event.end_hour || 0), // Ensure Integer
-          duration_hours: parseInt(event.duration_hours || 0), // Ensure Integer
-          scheduled_start_time: event.scheduled_start_time || '',
-          actual_start_time: event.actual_start_time || '', // Empty string instead of null
-          actual_end_time: event.actual_end_time || '', // Empty string instead of null
-          status: event.status || 'unknown',
-          hours_until_start: parseInt(event.hours_until_start ?? -1), // -1 instead of null
-          hours_remaining: parseInt(event.hours_remaining ?? -1) // -1 instead of null
-        }))
-      },
-      traffic: {
-        congestion_level: parseFloat(snapshot.traffic?.congestion_level || 0), // Ensure Double
-        average_speed: parseFloat(snapshot.traffic?.average_speed || 0), // Ensure Double
-        total_vehicles: parseInt(snapshot.traffic?.total_vehicles || 0), // Ensure Integer
-        peak_hour: snapshot.traffic?.peak_hour || false,
-        weather_impact: parseFloat(snapshot.traffic?.weather_impact || 1.0), // Ensure Double
-        events_impact: parseFloat(snapshot.traffic?.events_impact || 1.0), // Ensure Double
-        datazones: (snapshot.traffic?.datazones || []).map(zone => ({
-          datazone_code: zone.datazone_code || '',
-          datazone_congestion: parseFloat(zone.datazone_congestion || 0), // Ensure Double
-          area_type: zone.area_type || 'unknown',
-          congestion_trend: parseFloat(zone.congestion_trend || 0), // Ensure Double
-          estimated_vehicles: parseInt(zone.estimated_vehicles || 0), // Ensure Integer
-          average_speed: parseFloat(zone.average_speed || 0) // Ensure Double
-        }))
-      }
-    };
-    
-    res.json(transformedSnapshot);
-    
-  } catch (error) {
-    console.error(`Error getting simulation ${req.params.id} data:`, error);
-    
-    if (error.message && error.message.includes('No simulation data available yet')) {
-      res.status(202).json({
-        status: 'starting',
-        message: 'Simulation is starting up, data will be available shortly',
-        simulation_id: req.params.id,
-        retry_after: 10
-      });
-    } else {
-      res.status(500).json({
-        status: 'error',
-        message: 'Failed to get simulation data',
-        error: error.message
-      });
-    }
-  }
-});
-
-// Update simulation time compression - GET method for Foundry compatibility
+// Update simulation time compression
 app.get('/api/simulations/:id/time-compression', (req, res) => {
   try {
     const { id } = req.params;
-    const { seconds_per_hour } = req.query; // Get from query string instead of body
+    const { seconds_per_hour } = req.query;
     
-    // Convert to number from query string
     const secondsPerHour = parseInt(seconds_per_hour);
     
     if (!secondsPerHour || secondsPerHour < 1 || secondsPerHour > 3600) {
@@ -390,12 +469,11 @@ app.get('/api/simulations/:id/time-compression', (req, res) => {
     const oldCompression = simulation.secondsPerHour;
     simulation.updateTimeCompression(secondsPerHour);
     
-    // Match UpdateTimeCompressionResponseInterface exactly
     res.json({
       status: 'success',
       simulation_id: id,
-      seconds_per_hour: secondsPerHour, // Use converted number
-      previous_seconds_per_hour: parseInt(oldCompression), // Ensure Integer
+      seconds_per_hour: secondsPerHour,
+      previous_seconds_per_hour: parseInt(oldCompression),
       simulation_status: simulation.isRunning ? 'running' : 'stopped',
       message: 'Time compression updated successfully',
       updated_at: new Date().toISOString()
