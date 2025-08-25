@@ -45,7 +45,9 @@ app.get('/api/simulations', (req, res) => {
       foundry_integration: !!sim.foundryConfig,
       foundry_connected: !!sim.foundryToken,
       uptime_hours: parseInt(sim.hourCounter),
-      is_initialized: sim.isInitialized
+      is_initialized: sim.isInitialized,
+      has_ready_data: !!sim.readyHourData,
+      is_generating: sim.isGenerating
     }));
 
     res.json({
@@ -110,8 +112,7 @@ app.get('/api/simulations/start', async (req, res) => {
       started_at: new Date().toISOString(),
       api_endpoints: {
         status: `/api/simulations/${simId}/status`,
-        current_data: `/api/simulations/${simId}/data`,
-        advance_hour: `/api/simulations/${simId}/advance`,
+        data: `/api/simulations/${simId}/data`,
         stop: `/api/simulations/${simId}/stop`
       }
     });
@@ -126,8 +127,8 @@ app.get('/api/simulations/start', async (req, res) => {
   }
 });
 
-// NEW: Advance simulation by one hour
-app.get('/api/simulations/:id/advance', async (req, res) => {
+// Get current simulation data - Returns pre-generated data instantly and triggers next generation
+app.get('/api/simulations/:id/data', async (req, res) => {
   try {
     const { id } = req.params;
     const simulation = activeSimulations.get(id);
@@ -139,98 +140,8 @@ app.get('/api/simulations/:id/advance', async (req, res) => {
       });
     }
     
-    if (!simulation.isRunning) {
-      return res.status(400).json({
-        status: 'error',
-        message: `Simulation ${id} is not running`
-      });
-    }
-    
-    // Advance the simulation by one hour
-    const nextHourData = await simulation.advanceOneHour();
-    
-    // Transform to match API interface
-    const transformedData = {
-      status: 'success',
-      retrieved_at: new Date().toISOString(),
-      server_time: new Date().toISOString(),
-      simulation_id: id,
-      timestamp: nextHourData.timestamp,
-      hour: parseInt(nextHourData.hour),
-      is_running: simulation.isRunning,
-      weather: {
-        temperature: parseFloat(nextHourData.weather.temperature),
-        humidity: parseInt(nextHourData.weather.humidity),
-        windSpeed: parseFloat(nextHourData.weather.windSpeed),
-        condition: nextHourData.weather.condition,
-        pressure: parseFloat(nextHourData.weather.pressure)
-      },
-      events: {
-        active_count: parseInt(nextHourData.events.active_count),
-        scheduled_count: parseInt(nextHourData.events.scheduled_count),
-        completed_count: parseInt(nextHourData.events.completed_count),
-        events: nextHourData.events.events.map(event => ({
-          id: parseInt(event.id),
-          event_type: event.type,
-          name: event.name,
-          description: event.description,
-          datazones: event.datazones,
-          impact_factor: parseFloat(event.impact_factor),
-          start_hour: parseInt(event.start_hour),
-          end_hour: parseInt(event.end_hour),
-          duration_hours: parseInt(event.duration_hours),
-          scheduled_start_time: event.scheduled_start_time,
-          actual_start_time: event.actual_start_time || '',
-          actual_end_time: event.actual_end_time || '',
-          status: event.status,
-          hours_until_start: parseInt(event.hours_until_start ?? -1),
-          hours_remaining: parseInt(event.hours_remaining ?? -1)
-        }))
-      },
-      traffic: {
-        congestion_level: parseFloat(nextHourData.traffic.congestion_level),
-        average_speed: parseFloat(nextHourData.traffic.average_speed),
-        total_vehicles: parseInt(nextHourData.traffic.total_vehicles),
-        peak_hour: nextHourData.traffic.peak_hour,
-        weather_impact: parseFloat(nextHourData.traffic.weather_impact),
-        events_impact: parseFloat(nextHourData.traffic.events_impact),
-        datazones: nextHourData.traffic.datazones.map(zone => ({
-          datazone_code: zone.datazone_code,
-          datazone_congestion: parseFloat(zone.datazone_congestion),
-          area_type: zone.area_type,
-          congestion_trend: parseFloat(zone.congestion_trend),
-          estimated_vehicles: parseInt(Math.round(zone.datazone_congestion * 50)),
-          average_speed: parseFloat(Math.max(5, 50 - (zone.datazone_congestion * 8)).toFixed(1))
-        }))
-      }
-    };
-    
-    res.json(transformedData);
-    
-  } catch (error) {
-    console.error(`Error advancing simulation ${req.params.id}:`, error);
-    res.status(500).json({
-      status: 'error',
-      message: 'Failed to advance simulation',
-      error: error.message
-    });
-  }
-});
-
-// Get current simulation data (without advancing)
-app.get('/api/simulations/:id/data', (req, res) => {
-  try {
-    const { id } = req.params;
-    const simulation = activeSimulations.get(id);
-    
-    if (!simulation) {
-      return res.status(404).json({
-        status: 'error',
-        message: `Simulation ${id} not found`
-      });
-    }
-    
-    const snapshot = simulation.getCurrentSnapshot();
+    // THIS IS THE KEY CHANGE: Get pre-generated data instantly and trigger next generation
+    const snapshot = await simulation.getDataAndAdvance();
     
     // Transform the snapshot to match GetSimulationDataInterface exactly
     const transformedSnapshot = {
@@ -402,7 +313,7 @@ app.post('/api/simulations/stop', (req, res) => {
   }
 });
 
-// Get simulation status
+// Get simulation status (does NOT advance simulation)
 app.get('/api/simulations/:id/status', (req, res) => {
   try {
     const { id } = req.params;
@@ -427,6 +338,8 @@ app.get('/api/simulations/:id/status', (req, res) => {
       foundry_integration: !!simulation.foundryConfig,
       foundry_connected: !!simulation.foundryToken,
       uptime_hours: parseInt(simulation.hourCounter),
+      has_ready_data: !!simulation.readyHourData,
+      is_generating: simulation.isGenerating,
       created_at: simulation.currentTime ? 
         new Date(simulation.currentTime.getTime() - (simulation.hourCounter * 60 * 60 * 1000)).toISOString() 
         : new Date().toISOString()
@@ -549,5 +462,5 @@ app.listen(PORT, () => {
   console.log(`🌍 Edinburgh City Simulation API running on port ${PORT}`);
   console.log(`📡 Health check: http://localhost:${PORT}/health`);
   console.log(`🎯 Foundry integration: ${process.env.FOUNDRY_URL ? 'Enabled' : 'Disabled'}`);
-  console.log(`🕐 Ready to start simulations!`);
+  console.log(`🕐 Ready to start simulations with instant data delivery!`);
 });
