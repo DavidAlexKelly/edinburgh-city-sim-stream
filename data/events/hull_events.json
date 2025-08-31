@@ -1,0 +1,222 @@
+[
+  {
+    "type": "football_match",
+    "name": "Hull City FC Home Match",
+    "description": "Hull City FC playing at MKM Stadium with expected crowd of 15,000-20,000 supporters",
+    "affected_datazones": ["E01012756", "E01012757", "E01012758", "E01012759"],
+    "location_description": "MKM Stadium and surrounding West Hull residential areas",
+    "impact_factor": 2.2,
+    "start_hour": 15,
+    "end_hour": 17,
+    "duration_hours": 2
+  },
+  {
+    "type": "market_day",
+    "name": "Hull Trinity Market",
+    "description": "Traditional indoor and outdoor market in Hull city center",
+    "affected_datazones": ["E01012820", "E01012821", "E01012822", "E01012819"],
+    "location_description": "Trinity Market, King Edward Street, and Whitefriargate",
+    "impact_factor": 1.4,
+    "start_hour": 9,
+    "end_hour": 16,
+    "duration_hours": 7
+  },
+  {
+    "type": "port_event",
+    "name": "Hull Port Festival",
+    "description": "Maritime festival celebrating Hull's port heritage with ship visits",
+    "affected_datazones": ["E01012840", "E01012841", "E01012842", "E01012843"],
+    "location_description": "Hull Marina, River Hull, and Old Town waterfront",
+    "impact_factor": 1.8,
+    "start_hour": 10,
+    "end_hour": 18,
+    "duration_hours": 8
+  },
+  {
+    "type": "concert",
+    "name": "Hull Bonus Arena Event",
+    "description": "Major concert or show at Hull's premier entertainment venue",
+    "affected_datazones": ["E01012825", "E01012827", "E01012828", "E01012824"],
+    "location_description": "Bonus Arena and surrounding city center",
+    "impact_factor": 1.9,
+    "start_hour": 19,
+    "end_hour": 22,
+    "duration_hours": 3
+  },
+  {
+    "type": "university_event",
+    "name": "University of Hull Graduation",
+    "description": "University graduation ceremony with families and visitors",
+    "affected_datazones": ["E01012880", "E01012881", "E01012882", "E01012883"],
+    "location_description": "University of Hull campus and Cottingham Road area",
+    "impact_factor": 1.3,
+    "start_hour": 10,
+    "end_hour": 16,
+    "duration_hours": 6
+  },
+  {
+    "type": "ferry_event",
+    "name": "Hull-Rotterdam Ferry Peak",
+    "description": "Peak ferry departure/arrival creating traffic surge to King George Dock",
+    "affected_datazones": ["E01012760", "E01012761", "E01012762", "E01012763"],
+    "location_description": "King George Dock and approach roads via Hedon Road",
+    "impact_factor": 1.6,
+    "start_hour": 18,
+    "end_hour": 21,
+    "duration_hours": 3
+  },
+  {
+    "type": "shopping_event",
+    "name": "St. Stephen's Shopping Centre Sale",
+    "description": "Major retail event at Hull's main shopping center",
+    "affected_datazones": ["E01012820", "E01012821", "E01012825", "E01012827"],
+    "location_description": "St. Stephen's Shopping Centre and Ferensway",
+    "impact_factor": 1.5,
+    "start_hour": 9,
+    "end_hour": 20,
+    "duration_hours": 11
+  },
+  {
+    "type": "museum_event",
+    "name": "Hull Maritime Museum Special Exhibition",
+    "description": "Special exhibition opening at Hull Maritime Museum",
+    "affected_datazones": ["E01012840", "E01012841", "E01012842"],
+    "location_description": "Queen Victoria Square and Old Town area",
+    "impact_factor": 1.2,
+    "start_hour": 10,
+    "end_hour": 17,
+    "duration_hours": 7
+  },
+  {
+    "type": "festival",
+    "name": "Hull Freedom Festival",
+    "description": "Annual arts festival across Hull city center with street performances",
+    "affected_datazones": ["E01012820", "E01012821", "E01012840", "E01012841", "E01012825"],
+    "location_description": "City center from Queen Victoria Square to Trinity Square",
+    "impact_factor": 2.0,
+    "start_hour": 12,
+    "end_hour": 22,
+    "duration_hours": 10
+  },
+  {
+    "type": "rugby_match",
+    "name": "Hull FC Home Match",
+    "description": "Hull FC rugby league match at MKM Stadium",
+    "affected_datazones": ["E01012756", "E01012757", "E01012758", "E01012759"],
+    "location_description": "MKM Stadium and West Hull approach roads",
+    "impact_factor": 1.8,
+    "start_hour": 15,
+    "end_hour": 17,
+    "duration_hours": 2
+  },
+  {
+    "type": "industrial_event",
+    "name": "Hull Docks Cargo Operation",
+    "description": "Major cargo ship operation causing increased HGV traffic",
+    "affected_datazones": ["E01012764", "E01012765", "E01012766", "E01012767"],
+    "location_description": "Alexandra Dock and Salt End industrial area",
+    "impact_factor": 1.4,
+    "start_hour": 6,
+    "end_hour": 18,
+    "duration_hours": 12
+  },
+  {
+    "type": "park_event",
+    "name": "East Park Festival",
+    "description": "Community festival and fair in Hull's East Park",
+    "affected_datazones": ["E01012900", "E01012901", "E01012902", "E01012903"],
+    "location_description": "East Park and surrounding Holderness Road area",
+    "impact_factor": 1.3,
+    "start_hour": 11,
+    "end_hour": 18,
+    "duration_hours": 7
+  },
+  {
+    "type": "cycling_event",
+    "name": "Hull Cycle Challenge",
+    "description": "Charity cycling event through Hull city center and suburbs",
+    "affected_datazones": ["E01012820", "E01012840", "E01012880", "E01012900", "E01012756"],
+    "location_description": "Route from city center through various Hull districts",
+    "impact_factor": 1.7,
+    "start_hour": 9,
+    "end_hour": 15,
+    "duration_hours": 6
+  },
+  {
+    "type": "christmas_market",
+    "name": "Hull Christmas Market",
+    "description": "Seasonal Christmas market in Queen Victoria Square",
+    "affected_datazones": ["E01012840", "E01012841", "E01012820", "E01012821"],
+    "location_description": "Queen Victoria Square and surrounding Old Town streets",
+    "impact_factor": 1.6,
+    "start_hour": 10,
+    "end_hour": 19,
+    "duration_hours": 9
+  },
+  {
+    "type": "humber_bridge_event",
+    "name": "Humber Bridge Walk",
+    "description": "Organized charity walk across Humber Bridge",
+    "affected_datazones": ["E01012770", "E01012771", "E01012772", "E01012773"],
+    "location_description": "Hessle and approach roads to Humber Bridge",
+    "impact_factor": 1.5,
+    "start_hour": 8,
+    "end_hour": 16,
+    "duration_hours": 8
+  },
+  {
+    "type": "school_event",
+    "name": "Hull Schools Sports Championship",
+    "description": "Inter-school athletics competition at Costello Stadium",
+    "affected_datazones": ["E01012860", "E01012862", "E01012863"],
+    "location_description": "Costello Stadium and surrounding Anlaby Road area",
+    "impact_factor": 1.2,
+    "start_hour": 9,
+    "end_hour": 16,
+    "duration_hours": 7
+  },
+  {
+    "type": "business_event",
+    "name": "Hull Business Expo",
+    "description": "Regional business exhibition at Hull Venue",
+    "affected_datazones": ["E01012825", "E01012827", "E01012828"],
+    "location_description": "Hull Venue and city center conference facilities",
+    "impact_factor": 1.3,
+    "start_hour": 9,
+    "end_hour": 17,
+    "duration_hours": 8
+  },
+  {
+    "type": "heritage_event",
+    "name": "Hull Old Town Heritage Walk",
+    "description": "Guided heritage walks through Hull's historic Old Town",
+    "affected_datazones": ["E01012840", "E01012841", "E01012842"],
+    "location_description": "Old Town area including High Street and Trinity House Lane",
+    "impact_factor": 1.1,
+    "start_hour": 14,
+    "end_hour": 17,
+    "duration_hours": 3
+  },
+  {
+    "type": "protest_march",
+    "name": "Hull Peaceful Demonstration",
+    "description": "Organized peaceful march through Hull city center",
+    "affected_datazones": ["E01012820", "E01012825", "E01012840"],
+    "location_description": "Route from Paragon Interchange to Queen Victoria Square",
+    "impact_factor": 1.4,
+    "start_hour": 13,
+    "end_hour": 16,
+    "duration_hours": 3
+  },
+  {
+    "type": "emergency_drill",
+    "name": "Hull Emergency Services Exercise",
+    "description": "Multi-agency emergency response training in city center",
+    "affected_datazones": ["E01012820", "E01012825", "E01012840", "E01012760"],
+    "location_description": "City center and key transport infrastructure",
+    "impact_factor": 1.6,
+    "start_hour": 10,
+    "end_hour": 14,
+    "duration_hours": 4
+  }
+]
