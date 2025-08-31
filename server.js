@@ -1,8 +1,9 @@
-// server.js - Edinburgh City Simulation API (Interface Compliant)
+// server.js - City Simulation API (Multi-City Support)
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { CitySimulation, activeSimulations } from './lib/simulation.js';
+import { getAvailableCities, getCityConfig } from './lib/utils/cityConfigs.js';
 
 // Load environment variables
 dotenv.config();
@@ -29,8 +30,29 @@ app.get('/health', (req, res) => {
     memory: process.memoryUsage(),
     active_simulations: activeSimulations.size,
     foundry_configured: !!(process.env.FOUNDRY_URL && process.env.FOUNDRY_CLIENT_ID),
-    environment: process.env.NODE_ENV || 'development'
+    environment: process.env.NODE_ENV || 'development',
+    supported_cities: getAvailableCities().map(city => city.city_id)
   });
+});
+
+// Get available cities
+app.get('/api/cities', (req, res) => {
+  try {
+    const cities = getAvailableCities();
+    
+    res.json({
+      status: 'success',
+      timestamp: new Date().toISOString(),
+      cities: cities
+    });
+  } catch (error) {
+    console.error('Error getting cities:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to retrieve cities',
+      error: error.message
+    });
+  }
 });
 
 // Get all active simulations
@@ -38,6 +60,8 @@ app.get('/api/simulations', (req, res) => {
   try {
     const simulations = Array.from(activeSimulations.entries()).map(([id, sim]) => ({
       simulation_id: id,
+      city_id: sim.cityId,
+      city_name: sim.cityConfig.name,
       is_running: sim.isRunning,
       current_time: sim.currentTime.toISOString(),
       hour_counter: parseInt(sim.hourCounter),
@@ -72,7 +96,8 @@ app.get('/api/simulations/start', async (req, res) => {
     const { 
       seconds_per_hour = 60, 
       simulation_name = `simulation_${Date.now()}`,
-      simulation_id
+      simulation_id,
+      city = 'edinburgh'  // NEW PARAMETER
     } = req.query;
     
     const secondsPerHour = parseInt(seconds_per_hour) || 60;
@@ -83,8 +108,18 @@ app.get('/api/simulations/start', async (req, res) => {
         message: 'seconds_per_hour must be between 1 and 3600'
       });
     }
+
+    // Validate city
+    try {
+      getCityConfig(city);
+    } catch (error) {
+      return res.status(400).json({
+        status: 'error',
+        message: error.message
+      });
+    }
     
-    const simId = simulation_id || `sim_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const simId = simulation_id || `sim_${city}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
     if (activeSimulations.has(simId)) {
       return res.status(409).json({
@@ -93,9 +128,9 @@ app.get('/api/simulations/start', async (req, res) => {
       });
     }
     
-    console.log(`🚀 Starting new simulation: ${simId} (${secondsPerHour}s per hour)`);
+    console.log(`🚀 Starting new ${city} simulation: ${simId} (${secondsPerHour}s per hour)`);
     
-    const simulation = new CitySimulation(simId, secondsPerHour);
+    const simulation = new CitySimulation(simId, secondsPerHour, city);
     activeSimulations.set(simId, simulation);
     
     // Start the simulation (this will initialize and generate first hour)
@@ -105,10 +140,12 @@ app.get('/api/simulations/start', async (req, res) => {
       status: 'success',
       simulation_id: simId,
       simulation_name: simulation_name,
+      city_id: city,
+      city_name: simulation.cityConfig.name,
       seconds_per_hour: String(secondsPerHour), 
       simulation_status: 'running',
       foundry_integration: !!simulation.foundryConfig,
-      message: 'Simulation started successfully',
+      message: `${simulation.cityConfig.name} simulation started successfully`,
       started_at: new Date().toISOString(),
       api_endpoints: {
         status: `/api/simulations/${simId}/status`,
@@ -131,6 +168,8 @@ app.get('/api/simulations/start', async (req, res) => {
 app.get('/api/simulations/:id/data', async (req, res) => {
   try {
     const { id } = req.params;
+    const { time, hour } = req.query;
+    
     const simulation = activeSimulations.get(id);
     
     if (!simulation) {
@@ -139,16 +178,32 @@ app.get('/api/simulations/:id/data', async (req, res) => {
         message: `Simulation ${id} not found`
       });
     }
-    
-    // THIS IS THE KEY CHANGE: Get pre-generated data instantly and trigger next generation
+
+    // Handle time parameter from dashboard
+    let requestedTime = null;
+    if (time) {
+      requestedTime = new Date(time);
+    } else if (hour !== undefined) {
+      requestedTime = new Date();
+      requestedTime.setHours(parseInt(hour), 0, 0, 0);
+    }
+
+    // Generate data for the requested time
+    if (requestedTime) {
+      await simulation.generateNextHourData(requestedTime.toISOString());
+    }
+
+    // Get pre-generated data instantly and trigger next generation
     const snapshot = await simulation.getDataAndAdvance();
-    
+
     // Transform the snapshot to match GetSimulationDataInterface exactly
     const transformedSnapshot = {
       status: 'success',
       retrieved_at: new Date().toISOString(),
       server_time: new Date().toISOString(),
       simulation_id: id,
+      city_id: snapshot.city_id,
+      city_name: snapshot.city_name,
       timestamp: snapshot.timestamp || new Date().toISOString(),
       hour: parseInt(snapshot.hour || 0),
       is_running: simulation.isRunning,
@@ -168,7 +223,8 @@ app.get('/api/simulations/:id/data', async (req, res) => {
           event_type: event.type || 'unknown',
           name: event.name || 'Unnamed Event',
           description: event.description || '',
-          datazones: event.datazones || [],
+          affected_datazones: event.affected_datazones || [],
+          location_description: event.location_description || '',
           impact_factor: parseFloat(event.impact_factor || 1.0),
           start_hour: parseInt(event.start_hour || 0),
           end_hour: parseInt(event.end_hour || 0),
@@ -198,12 +254,12 @@ app.get('/api/simulations/:id/data', async (req, res) => {
         }))
       }
     };
-    
+
     res.json(transformedSnapshot);
-    
+
   } catch (error) {
     console.error(`Error getting simulation ${req.params.id} data:`, error);
-    
+
     if (error.message && error.message.includes('No simulation data available yet')) {
       res.status(202).json({
         status: 'starting',
@@ -235,16 +291,18 @@ app.get('/api/simulations/:id/stop', (req, res) => {
     }
     
     const finalHour = simulation.hourCounter;
+    const cityName = simulation.cityConfig.name;
     simulation.stop();
     activeSimulations.delete(id);
     
-    console.log(`⏹️ Stopped simulation: ${id}`);
+    console.log(`⏹️ Stopped ${cityName} simulation: ${id}`);
     
     res.json({
       status: 'success',
       simulation_id: id,
+      city_name: cityName,
       simulation_status: 'stopped',
-      message: `Simulation ${id} stopped successfully`,
+      message: `${cityName} simulation ${id} stopped successfully`,
       stopped_at: new Date().toISOString(),
       final_hour: parseInt(finalHour)
     });
@@ -270,10 +328,11 @@ app.post('/api/simulations/stop', (req, res) => {
         simulation.stop();
         stoppedSimulations.push({
           simulation_id: id,
+          city_name: simulation.cityConfig.name,
           status: 'stopped',
           uptime_hours: parseInt(simulation.hourCounter)
         });
-        console.log(`⏹️ Stopped simulation: ${id}`);
+        console.log(`⏹️ Stopped ${simulation.cityConfig.name} simulation: ${id}`);
       } catch (error) {
         console.error(`Error stopping simulation ${id}:`, error);
         errors.push({
@@ -330,6 +389,8 @@ app.get('/api/simulations/:id/status', (req, res) => {
       status: 'success',
       timestamp: new Date().toISOString(),
       simulation_id: id,
+      city_id: simulation.cityId,
+      city_name: simulation.cityConfig.name,
       is_running: simulation.isRunning,
       is_initialized: simulation.isInitialized,
       current_time: simulation.currentTime.toISOString(),
@@ -385,6 +446,7 @@ app.get('/api/simulations/:id/time-compression', (req, res) => {
     res.json({
       status: 'success',
       simulation_id: id,
+      city_name: simulation.cityConfig.name,
       seconds_per_hour: secondsPerHour,
       previous_seconds_per_hour: parseInt(oldCompression),
       simulation_status: simulation.isRunning ? 'running' : 'stopped',
@@ -424,12 +486,12 @@ app.use((req, res) => {
 
 // Graceful shutdown handler
 process.on('SIGTERM', () => {
-  console.log('🔄 SIGTERM received, stopping all simulations...');
+  console.log('🛑 SIGTERM received, stopping all simulations...');
   
   for (const [id, simulation] of activeSimulations.entries()) {
     try {
       simulation.stop();
-      console.log(`⏹️ Stopped simulation: ${id}`);
+      console.log(`⏹️ Stopped ${simulation.cityConfig.name} simulation: ${id}`);
     } catch (error) {
       console.error(`Error stopping simulation ${id}:`, error);
     }
@@ -441,12 +503,12 @@ process.on('SIGTERM', () => {
 });
 
 process.on('SIGINT', () => {
-  console.log('🔄 SIGINT received, stopping all simulations...');
+  console.log('🛑 SIGINT received, stopping all simulations...');
   
   for (const [id, simulation] of activeSimulations.entries()) {
     try {
       simulation.stop();
-      console.log(`⏹️ Stopped simulation: ${id}`);
+      console.log(`⏹️ Stopped ${simulation.cityConfig.name} simulation: ${id}`);
     } catch (error) {
       console.error(`Error stopping simulation ${id}:`, error);
     }
@@ -459,8 +521,9 @@ process.on('SIGINT', () => {
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`🌍 Edinburgh City Simulation API running on port ${PORT}`);
-  console.log(`📡 Health check: http://localhost:${PORT}/health`);
-  console.log(`🎯 Foundry integration: ${process.env.FOUNDRY_URL ? 'Enabled' : 'Disabled'}`);
-  console.log(`🕐 Ready to start simulations with instant data delivery!`);
+  console.log(`🏙️ Multi-City Simulation API running on port ${PORT}`);
+  console.log(`🏥 Health check: http://localhost:${PORT}/health`);
+  console.log(`🌍 Available cities: http://localhost:${PORT}/api/cities`);
+  console.log(`🔗 Foundry integration: ${process.env.FOUNDRY_URL ? 'Enabled' : 'Disabled'}`);
+  console.log(`⚡ Ready to start simulations with instant data delivery!`);
 });

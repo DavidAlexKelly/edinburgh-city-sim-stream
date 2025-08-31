@@ -1,0 +1,222 @@
+[
+  {
+    "type": "football_match",
+    "name": "York City FC Home Match",
+    "description": "York City FC playing at home stadium with expected crowd of 3,000-5,000 supporters",
+    "affected_datazones": ["E01013308", "E01013126", "E01013127", "E01013125"],
+    "location_description": "Bootham Crescent Stadium and surrounding residential areas",
+    "impact_factor": 1.6,
+    "start_hour": 15,
+    "end_hour": 17,
+    "duration_hours": 2
+  },
+  {
+    "type": "market_day",
+    "name": "York Traditional Market",
+    "description": "Weekly traditional market in the city center attracting locals and tourists",
+    "affected_datazones": ["E01013200", "E01013201", "E01013199"],
+    "location_description": "Parliament Street, Market Square, and Shambles area",
+    "impact_factor": 1.4,
+    "start_hour": 9,
+    "end_hour": 16,
+    "duration_hours": 7
+  },
+  {
+    "type": "horse_racing",
+    "name": "York Racecourse Meeting",
+    "description": "Major horse racing event at York Racecourse, one of the UK's premier racing venues",
+    "affected_datazones": ["E01013150", "E01013151", "E01013152", "E01013149", "E01013148"],
+    "location_description": "Knavesmire area and approach roads to York Racecourse",
+    "impact_factor": 2.1,
+    "start_hour": 13,
+    "end_hour": 18,
+    "duration_hours": 5
+  },
+  {
+    "type": "festival",
+    "name": "York Food & Drink Festival",
+    "description": "Annual food and drink festival in Parliament Street and surrounding areas",
+    "affected_datazones": ["E01013200", "E01013201", "E01013199", "E01013202"],
+    "location_description": "Parliament Street, St. Sampson's Square, and King's Square",
+    "impact_factor": 1.8,
+    "start_hour": 10,
+    "end_hour": 18,
+    "duration_hours": 8
+  },
+  {
+    "type": "concert",
+    "name": "York Barbican Concert",
+    "description": "Major concert or show at York Barbican Centre",
+    "affected_datazones": ["E01013180", "E01013181", "E01013179"],
+    "location_description": "Paragon Street and York Barbican area",
+    "impact_factor": 1.5,
+    "start_hour": 19,
+    "end_hour": 22,
+    "duration_hours": 3
+  },
+  {
+    "type": "university_event",
+    "name": "University of York Graduation",
+    "description": "University graduation ceremony with families and visitors",
+    "affected_datazones": ["E01013300", "E01013301", "E01013299", "E01013302"],
+    "location_description": "University of York campus and Heslington area",
+    "impact_factor": 1.3,
+    "start_hour": 10,
+    "end_hour": 16,
+    "duration_hours": 6
+  },
+  {
+    "type": "tourist_event",
+    "name": "York Minster Special Service",
+    "description": "Special religious service or event at York Minster attracting large crowds",
+    "affected_datazones": ["E01013190", "E01013191", "E01013189", "E01013192"],
+    "location_description": "York Minster and surrounding historic city center",
+    "impact_factor": 1.4,
+    "start_hour": 11,
+    "end_hour": 13,
+    "duration_hours": 2
+  },
+  {
+    "type": "shopping_event",
+    "name": "York Designer Outlet Sale",
+    "description": "Major sale event at York Designer Outlet attracting shoppers from across Yorkshire",
+    "affected_datazones": ["E01013320", "E01013321", "E01013319"],
+    "location_description": "Fulford area and York Designer Outlet",
+    "impact_factor": 1.7,
+    "start_hour": 9,
+    "end_hour": 20,
+    "duration_hours": 11
+  },
+  {
+    "type": "railway_event",
+    "name": "York Railway Museum Special Event",
+    "description": "Special exhibition or steam train event at National Railway Museum",
+    "affected_datazones": ["E01013170", "E01013171", "E01013169"],
+    "location_description": "Leeman Road and National Railway Museum area",
+    "impact_factor": 1.2,
+    "start_hour": 10,
+    "end_hour": 17,
+    "duration_hours": 7
+  },
+  {
+    "type": "ghost_walk",
+    "name": "York Ghost Walk Tour",
+    "description": "Popular evening ghost walk tours through historic York streets",
+    "affected_datazones": ["E01013190", "E01013200", "E01013199"],
+    "location_description": "Historic city center including Shambles and Stonegate",
+    "impact_factor": 1.1,
+    "start_hour": 19,
+    "end_hour": 21,
+    "duration_hours": 2
+  },
+  {
+    "type": "park_event",
+    "name": "Rowntree Park Festival",
+    "description": "Community festival and fair in Rowntree Park",
+    "affected_datazones": ["E01013220", "E01013221", "E01013219"],
+    "location_description": "Rowntree Park and surrounding residential areas",
+    "impact_factor": 1.3,
+    "start_hour": 12,
+    "end_hour": 18,
+    "duration_hours": 6
+  },
+  {
+    "type": "cycling_event",
+    "name": "Tour de Yorkshire Stage",
+    "description": "Professional cycling race passing through York city center",
+    "affected_datazones": ["E01013200", "E01013190", "E01013180", "E01013170", "E01013160"],
+    "location_description": "City center route from Minster to Micklegate Bar",
+    "impact_factor": 2.0,
+    "start_hour": 14,
+    "end_hour": 16,
+    "duration_hours": 2
+  },
+  {
+    "type": "christmas_market",
+    "name": "York Christmas Market",
+    "description": "Traditional Christmas market in St. Nicholas Fair",
+    "affected_datazones": ["E01013200", "E01013201", "E01013199", "E01013190"],
+    "location_description": "Parliament Street and surrounding city center streets",
+    "impact_factor": 1.9,
+    "start_hour": 10,
+    "end_hour": 19,
+    "duration_hours": 9
+  },
+  {
+    "type": "river_event",
+    "name": "York River Ouse Regatta",
+    "description": "Rowing regatta and river festival along the River Ouse",
+    "affected_datazones": ["E01013175", "E01013176", "E01013174"],
+    "location_description": "River Ouse from Lendal Bridge to Millennium Bridge",
+    "impact_factor": 1.2,
+    "start_hour": 9,
+    "end_hour": 17,
+    "duration_hours": 8
+  },
+  {
+    "type": "school_event",
+    "name": "York Schools Sports Day",
+    "description": "Inter-school sports competition at York Sports Village",
+    "affected_datazones": ["E01013300", "E01013301", "E01013299"],
+    "location_description": "University of York Sports Village and campus",
+    "impact_factor": 1.1,
+    "start_hour": 9,
+    "end_hour": 16,
+    "duration_hours": 7
+  },
+  {
+    "type": "business_event",
+    "name": "York Business Conference",
+    "description": "Major business conference at York Racecourse or Barbican",
+    "affected_datazones": ["E01013150", "E01013180", "E01013181"],
+    "location_description": "York Racecourse or Barbican Centre",
+    "impact_factor": 1.2,
+    "start_hour": 8,
+    "end_hour": 18,
+    "duration_hours": 10
+  },
+  {
+    "type": "medieval_festival",
+    "name": "Jorvik Viking Festival",
+    "description": "Annual Viking festival celebrating York's Norse heritage",
+    "affected_datazones": ["E01013190", "E01013200", "E01013199", "E01013191"],
+    "location_description": "Coppergate, Jorvik Centre, and historic city center",
+    "impact_factor": 1.6,
+    "start_hour": 10,
+    "end_hour": 17,
+    "duration_hours": 7
+  },
+  {
+    "type": "protest_march",
+    "name": "York Peaceful Demonstration",
+    "description": "Organized peaceful march or demonstration through city center",
+    "affected_datazones": ["E01013200", "E01013190", "E01013180"],
+    "location_description": "Route from Exhibition Square to Parliament Street",
+    "impact_factor": 1.4,
+    "start_hour": 14,
+    "end_hour": 16,
+    "duration_hours": 2
+  },
+  {
+    "type": "wedding_event",
+    "name": "York Minster Wedding",
+    "description": "High-profile wedding ceremony at York Minster",
+    "affected_datazones": ["E01013190", "E01013191", "E01013189"],
+    "location_description": "York Minster and immediate surrounding streets",
+    "impact_factor": 1.3,
+    "start_hour": 14,
+    "end_hour": 17,
+    "duration_hours": 3
+  },
+  {
+    "type": "emergency_drill",
+    "name": "York Emergency Services Exercise",
+    "description": "Multi-agency emergency response training exercise",
+    "affected_datazones": ["E01013200", "E01013180", "E01013170"],
+    "location_description": "City center and key transport routes",
+    "impact_factor": 1.5,
+    "start_hour": 10,
+    "end_hour": 14,
+    "duration_hours": 4
+  }
+]
